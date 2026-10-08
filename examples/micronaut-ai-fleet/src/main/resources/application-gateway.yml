@@ -1,0 +1,22 @@
+micronaut:
+  application:
+    name: gateway
+  server:
+    port: 8090
+  mcp:
+    server:
+      transport: HTTP
+      info: { name: ai-fleet, version: 0.2.0 }
+agentspaces:
+  bind: 127.0.0.1:7602
+  groups:
+    - name: ai-fleet
+      founding: ai-fleet-v1
+      seeds: ["127.0.0.1:7600"]
+      spaces:
+        - name: tasks
+        - name: model-requests
+  micronaut:
+    mcp:
+      export:
+        enabled: true          # the fleet's tools at http://localhost:8090/mcp

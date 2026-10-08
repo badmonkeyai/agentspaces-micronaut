@@ -1,0 +1,17 @@
+micronaut:
+  application:
+    name: orchestrator
+agentspaces:
+  bind: 127.0.0.1:7601
+  groups:
+    - name: ai-fleet
+      founding: ai-fleet-v1
+      seeds: ["127.0.0.1:7600"]
+      spaces:
+        - name: tasks
+        - name: model-requests
+  micronaut:
+    langchain4j:
+      model-client:
+        enabled: true          # no key here: the model is the fleet
+        model: gpt-4.1-mini

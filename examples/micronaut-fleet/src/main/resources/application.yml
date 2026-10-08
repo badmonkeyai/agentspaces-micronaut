@@ -1,0 +1,12 @@
+# Shared by both services: one founded fleet with the three spaces this example uses.
+agentspaces:
+  tick-millis: 250
+  security:
+    profile: dev-local
+  groups:
+    - name: order-fleet
+      founding: order-fleet-v1
+      spaces:
+        - name: tasks
+        - name: findings
+        - name: data

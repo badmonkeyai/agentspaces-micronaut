@@ -1,0 +1,16 @@
+micronaut:
+  application:
+    name: analyst
+agentspaces:
+  bind: 127.0.0.1:7501
+  groups:
+    - name: order-fleet
+      founding: order-fleet-v1
+      seeds: ["127.0.0.1:7500"]
+      spaces:
+        - name: tasks
+        - name: findings
+        - name: data
+  micronaut:
+    registry:
+      enabled: true          # @Client("orders") resolves through the fleet

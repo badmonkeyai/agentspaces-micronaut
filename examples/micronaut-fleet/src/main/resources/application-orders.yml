@@ -1,0 +1,15 @@
+micronaut:
+  application:
+    name: orders
+  server:
+    port: 8080
+agentspaces:
+  bind: 127.0.0.1:7500
+  micronaut:
+    service-asset:
+      enabled: true          # the service's HTTP presence as an AssetCard
+endpoints:
+  health:
+    details-visible: ANONYMOUS
+  agentspaces:
+    sensitive: false         # demo only: the fleet view at /agentspaces

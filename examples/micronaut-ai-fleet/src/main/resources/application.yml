@@ -1,0 +1,14 @@
+# Shared by every peer: one founded fleet and the spaces the bridges use.
+agentspaces:
+  tick-millis: 250
+  security:
+    profile: dev-local
+  groups:
+    - name: ai-fleet
+      founding: ai-fleet-v1
+      spaces:
+        - name: tasks
+        - name: model-requests
+  micronaut:
+    tools:
+      refresh-interval: 2s

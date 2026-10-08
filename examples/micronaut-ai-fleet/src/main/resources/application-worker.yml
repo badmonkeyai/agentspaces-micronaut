@@ -1,0 +1,16 @@
+micronaut:
+  application:
+    name: worker
+agentspaces:
+  bind: 127.0.0.1:7600
+  micronaut:
+    langchain4j:
+      model-server:
+        enabled: true          # serve this peer's models to the fleet
+      usage:
+        enabled: true
+langchain4j:
+  open-ai:
+    api-key: ${OPENAI_API_KEY:}
+    chat-model:
+      model-name: gpt-4.1-mini
