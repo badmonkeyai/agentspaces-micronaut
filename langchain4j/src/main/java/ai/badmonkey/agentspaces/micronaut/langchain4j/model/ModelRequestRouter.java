@@ -15,58 +15,22 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j.model;
 
-import ai.badmonkey.agentspaces.api.space.Template;
-import ai.badmonkey.agentspaces.springai.model.wire.ModelRequest;
-import ai.badmonkey.agentspaces.springai.model.wire.WireMessage;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.OptionalDouble;
 
-import static ai.badmonkey.agentspaces.api.space.Matchers.in;
+/**
+ * As this bridge first named it; the type now lives in {@code agentspaces-langchain4j}.
+ * A bean of this type still replaces the default.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface ModelRequestRouter extends ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter {
 
-/** Which requests a server takes: by the models it serves, or by price under AUCTION. */
-public interface ModelRequestRouter {
-
-    Template<ModelRequest> template(ModelCatalog catalog);
-
-    default OptionalDouble bid(ModelRequest request, ModelCatalog catalog) {
-        return OptionalDouble.empty();
+    static ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter byModel() {
+        return ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter.byModel();
     }
 
-    static ModelRequestRouter byModel() {
-        return catalog -> {
-            List<Object> names = new ArrayList<>(catalog.models());
-            names.add("");
-            return Template.of(ModelRequest.class).where("model", in(names.toArray()));
-        };
-    }
-
-    static ModelRequestRouter byPrice(Map<String, Double> pricePerThousandTokens) {
-        Map<String, Double> prices = Map.copyOf(pricePerThousandTokens);
-        return new ModelRequestRouter() {
-            @Override
-            public Template<ModelRequest> template(ModelCatalog catalog) {
-                return Template.of(ModelRequest.class);
-            }
-
-            @Override
-            public OptionalDouble bid(ModelRequest request, ModelCatalog catalog) {
-                String model = request.model().isBlank() ? catalog.defaultModel() : request.model();
-                if (catalog.model(model).isEmpty()) {
-                    return OptionalDouble.of(Double.POSITIVE_INFINITY);
-                }
-                return OptionalDouble.of(prices.getOrDefault(model, 1.0) * estimatedTokens(request) / 1000.0);
-            }
-        };
-    }
-
-    static double estimatedTokens(ModelRequest request) {
-        long chars = 0;
-        for (WireMessage message : request.messages()) {
-            chars += message.text() == null ? 0 : message.text().length();
-        }
-        return Math.max(1.0, chars / 4.0);
+    static ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter byPrice(Map<String, Double> pricePerThousandTokens) {
+        return ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter.byPrice(pricePerThousandTokens);
     }
 }

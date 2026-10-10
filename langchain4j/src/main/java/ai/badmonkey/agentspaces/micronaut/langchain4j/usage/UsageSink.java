@@ -15,11 +15,12 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j.usage;
 
-import ai.badmonkey.agentspaces.springai.model.wire.ModelUsage;
-
-/** Receives one usage record per model call; the default is {@link FleetUsage}. */
-@FunctionalInterface
-public interface UsageSink {
-
-    void record(ModelUsage usage);
+/**
+ * As this bridge first named it; the type now lives in {@code agentspaces-langchain4j}.
+ * A bean of this type still replaces the default.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.langchain4j.usage.UsageSink}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface UsageSink extends ai.badmonkey.agentspaces.langchain4j.usage.UsageSink {
 }

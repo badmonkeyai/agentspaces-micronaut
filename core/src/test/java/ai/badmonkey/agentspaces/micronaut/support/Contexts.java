@@ -62,6 +62,26 @@ public final class Contexts {
         return props;
     }
 
+    /**
+     * The it-fleet property set plus a registered {@code votes} space (so the
+     * vote capability runs over a space the tests can read) and an AUCTION
+     * {@code bids} space for a bid function.
+     */
+    public static Map<String, Object> passthrough(int port) {
+        return passthrough(port, 0);
+    }
+
+    /** As {@link #passthrough(int)}, seeded from another peer when {@code seedPort} is positive. */
+    public static Map<String, Object> passthrough(int port, int seedPort) {
+        Map<String, Object> props = fleet(port, seedPort);
+        props.put("agentspaces.groups[0].spaces[3].name", "votes");
+        props.put("agentspaces.groups[0].spaces[3].settle-window-millis", "100");
+        props.put("agentspaces.groups[0].spaces[4].name", "bids");
+        props.put("agentspaces.groups[0].spaces[4].strategy", "AUCTION");
+        props.put("agentspaces.groups[0].spaces[4].settle-window-millis", "300");
+        return props;
+    }
+
     /** Polls until the condition holds or the timeout passes. */
     public static boolean await(Duration timeout, BooleanSupplier condition) {
         long deadline = System.nanoTime() + timeout.toNanos();

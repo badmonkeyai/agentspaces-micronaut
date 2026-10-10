@@ -15,100 +15,23 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j.model;
 
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-
 /**
- * The models a server peer serves, by name, with the LangChain4j model bean
- * behind each. By default every {@code ChatModel} bean, named by the model
- * its default request parameters carry; {@code models} narrows the list and
- * {@code model-beans} maps a model name to a bean name explicitly.
+ * As this bridge first named it; the type now lives in {@code agentspaces-langchain4j}.
+ * A bean of this type still replaces the default.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.langchain4j.model.ModelCatalog}; this alias goes in the next release
  */
-public interface ModelCatalog {
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface ModelCatalog extends ai.badmonkey.agentspaces.langchain4j.model.ModelCatalog {
 
-    List<String> models();
-
-    Optional<ChatModel> model(String model);
-
-    /** The streaming twin of a model, when the peer has one. */
-    default Optional<StreamingChatModel> streamingModel(String model) {
-        return Optional.empty();
+    static ai.badmonkey.agentspaces.langchain4j.model.ModelCatalog of(
+            java.util.List<String> models, java.util.Map<String, dev.langchain4j.model.chat.ChatModel> beans,
+            java.util.Map<String, dev.langchain4j.model.chat.StreamingChatModel> streamingBeans,
+            java.util.Map<String, String> modelBeans) {
+        return ai.badmonkey.agentspaces.langchain4j.model.ModelCatalog.of(models, beans, streamingBeans, modelBeans);
     }
 
-    default String defaultModel() {
-        return models().isEmpty() ? "" : models().get(0);
-    }
-
-    static ModelCatalog of(List<String> models, Map<String, ChatModel> beans,
-                           Map<String, StreamingChatModel> streamingBeans, Map<String, String> modelBeans) {
-        Map<String, ChatModel> byModel = new LinkedHashMap<>();
-        Map<String, StreamingChatModel> streamingByModel = new LinkedHashMap<>();
-        modelBeans.forEach((model, bean) -> {
-            ChatModel chat = beans.get(bean);
-            if (chat == null) {
-                throw new IllegalStateException("agentspaces.micronaut.langchain4j.model-server.model-beans maps '"
-                        + model + "' to bean '" + bean + "', which is not a ChatModel bean; beans: " + beans.keySet());
-            }
-            byModel.put(model, chat);
-            if (streamingBeans.containsKey(bean)) {
-                streamingByModel.put(model, streamingBeans.get(bean));
-            }
-        });
-        beans.forEach((bean, chat) -> {
-            String name = modelName(chat);
-            if (name != null && !byModel.containsKey(name) && !modelBeans.containsValue(bean)) {
-                byModel.put(name, chat);
-                if (streamingBeans.containsKey(bean)) {
-                    streamingByModel.put(name, streamingBeans.get(bean));
-                }
-            }
-        });
-        List<String> served = models.isEmpty() ? new ArrayList<>(byModel.keySet()) : List.copyOf(models);
-        for (String model : served) {
-            if (!byModel.containsKey(model)) {
-                throw new IllegalStateException("model-server serves '" + model + "' but no ChatModel bean"
-                        + " reports that model name; beans by model: " + byModel.keySet()
-                        + "; map it with agentspaces.micronaut.langchain4j.model-server.model-beans." + model);
-            }
-        }
-        if (served.isEmpty()) {
-            throw new IllegalStateException("agentspaces.micronaut.langchain4j.model-server.enabled=true but"
-                    + " this peer has no ChatModel bean to serve");
-        }
-        List<String> names = List.copyOf(served);
-        return new ModelCatalog() {
-            @Override
-            public List<String> models() {
-                return names;
-            }
-
-            @Override
-            public Optional<ChatModel> model(String model) {
-                return names.contains(model) ? Optional.ofNullable(byModel.get(model)) : Optional.empty();
-            }
-
-            @Override
-            public Optional<StreamingChatModel> streamingModel(String model) {
-                return names.contains(model) ? Optional.ofNullable(streamingByModel.get(model)) : Optional.empty();
-            }
-        };
-    }
-
-    /** The model name a LangChain4j model reports through its default parameters, if any. */
-    static String modelName(ChatModel model) {
-        Objects.requireNonNull(model, "model");
-        try {
-            var parameters = model.defaultRequestParameters();
-            return parameters == null ? null : parameters.modelName();
-        } catch (RuntimeException e) {
-            return null;
-        }
+    static String modelName(dev.langchain4j.model.chat.ChatModel model) {
+        return ai.badmonkey.agentspaces.langchain4j.model.ModelCatalog.modelName(model);
     }
 }

@@ -19,17 +19,9 @@ package ai.badmonkey.agentspaces.micronaut;
  * Something that runs with the fabric: started by {@link FleetLifecycle}
  * after annotated beans are enrolled and the node ticks, refreshed on the
  * card-refresh cadence, and stopped in reverse order before the node closes.
- * Order participants with {@code @Order}.
+ * Order participants with {@code @Order}. The runtime's
+ * {@link ai.badmonkey.agentspaces.runtime.FleetParticipant}; a bean of either
+ * type is started.
  */
-public interface FleetParticipant {
-
-    /** Starts; called once, on the application's {@code StartupEvent}. */
-    void start();
-
-    /** Runs on every card-refresh tick; exceptions are logged, never fatal. */
-    default void refresh() {
-    }
-
-    /** Stops; called once, on shutdown. */
-    void stop();
+public interface FleetParticipant extends ai.badmonkey.agentspaces.runtime.FleetParticipant {
 }

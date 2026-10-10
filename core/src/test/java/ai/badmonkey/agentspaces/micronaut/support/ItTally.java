@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.badmonkey.agentspaces.micronaut.langchain4j.model;
+package ai.badmonkey.agentspaces.micronaut.support;
 
-/** A fleet model call that produced no usable answer. */
-public class FleetModelException extends RuntimeException {
-
-    public FleetModelException(String message) {
-        super(message);
-    }
+/** A reduce accumulator: how many priority points a topic has gathered. */
+public record ItTally(String topic, int points) {
 }

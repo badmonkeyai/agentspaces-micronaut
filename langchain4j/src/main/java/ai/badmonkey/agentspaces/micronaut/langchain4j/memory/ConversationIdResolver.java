@@ -15,23 +15,18 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j.memory;
 
-import ai.badmonkey.agentspaces.agent.TakeContext;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.LangChain4jSettings.ConversationIdMode;
+import ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.ConversationIdMode;
 
-import java.util.Optional;
+/**
+ * As this bridge first named it; the type now lives in {@code agentspaces-langchain4j}.
+ * A bean of this type still replaces the default.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.langchain4j.memory.ConversationIdResolver}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface ConversationIdResolver extends ai.badmonkey.agentspaces.langchain4j.memory.ConversationIdResolver {
 
-/** Names the conversation a model call belongs to; the default follows the in-flight take. */
-@FunctionalInterface
-public interface ConversationIdResolver {
-
-    /** The conversation id for the current thread, if one applies. */
-    Optional<String> resolve();
-
-    static ConversationIdResolver of(ConversationIdMode mode) {
-        return switch (mode) {
-            case TAKE -> () -> TakeContext.current().map(take -> take.entryId().toString());
-            case AGENT -> () -> TakeContext.current().map(take -> take.agent().localName());
-            case EXPLICIT -> Optional::empty;
-        };
+    static ai.badmonkey.agentspaces.langchain4j.memory.ConversationIdResolver of(ConversationIdMode mode) {
+        return ai.badmonkey.agentspaces.langchain4j.memory.ConversationIdResolver.of(mode);
     }
 }

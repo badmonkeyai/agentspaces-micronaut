@@ -54,6 +54,31 @@ public class ScriptedModels {
                 });
     }
 
+    /** The voter's model: reads the decision through the capability tool, then answers with it. */
+    @Singleton
+    @Primary
+    @Named("scripted")
+    @Requires(property = "test.app", value = "voter")
+    public ScriptedChatModel voterModel() {
+        return new ScriptedChatModel("scripted")
+                .then(request -> {
+                    boolean hasTool = request.toolSpecifications() != null && request.toolSpecifications().stream()
+                            .anyMatch(spec -> spec.name().equals("read_decision"));
+                    if (!hasTool) {
+                        return AiMessage.from("no capability tools offered");
+                    }
+                    return AiMessage.from(ToolExecutionRequest.builder().id("call-1").name("read_decision")
+                            .arguments("{\"id\":\"plan\"}").build());
+                })
+                .then(request -> {
+                    String last = request.messages().stream()
+                            .filter(ToolExecutionResultMessage.class::isInstance)
+                            .map(m -> ((ToolExecutionResultMessage) m).text())
+                            .reduce((a, b) -> b).orElse("(no tool result)");
+                    return AiMessage.from("decided: " + last);
+                });
+    }
+
     /** The server peer's model, served to the fleet under the name "scripted". */
     @Singleton
     @Named("scripted")

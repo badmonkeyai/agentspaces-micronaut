@@ -15,24 +15,18 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j.model;
 
-import ai.badmonkey.agentspaces.micronaut.langchain4j.LangChain4jSettings.RestartMode;
+import ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.RestartMode;
 
-/** What a stream does when its server dies and another attempt begins. */
-@FunctionalInterface
-public interface StreamRestartPolicy {
+/**
+ * As this bridge first named it; the type now lives in {@code agentspaces-langchain4j}.
+ * A bean of this type still replaces the default.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.langchain4j.model.StreamRestartPolicy}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface StreamRestartPolicy extends ai.badmonkey.agentspaces.langchain4j.model.StreamRestartPolicy {
 
-    /** The two outcomes. */
-    enum Action {
-        /** End the stream with {@link FleetStreamRestartedException}. */
-        FAIL,
-        /** Emit a restart marker, then the new attempt from its beginning. */
-        RESTART
-    }
-
-    Action decide(String requestId, int fromAttempt, int toAttempt, String partialText);
-
-    static StreamRestartPolicy of(RestartMode mode) {
-        Action action = mode == RestartMode.RESTART ? Action.RESTART : Action.FAIL;
-        return (requestId, fromAttempt, toAttempt, partialText) -> action;
+    static ai.badmonkey.agentspaces.langchain4j.model.StreamRestartPolicy of(RestartMode mode) {
+        return ai.badmonkey.agentspaces.langchain4j.model.StreamRestartPolicy.of(mode);
     }
 }

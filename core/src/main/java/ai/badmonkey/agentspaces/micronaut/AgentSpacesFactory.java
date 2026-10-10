@@ -19,8 +19,10 @@ import ai.badmonkey.agentspaces.agent.AgentIdentityFactory;
 import ai.badmonkey.agentspaces.agent.AgentSpaces;
 import ai.badmonkey.agentspaces.api.spi.Authorizer;
 import ai.badmonkey.agentspaces.api.spi.Embedder;
+import ai.badmonkey.agentspaces.api.spi.SchemaRegistry;
 import ai.badmonkey.agentspaces.identity.PeerIdentity;
 import ai.badmonkey.agentspaces.peering.node.PeerNode;
+import ai.badmonkey.agentspaces.runtime.FleetScheduler;
 import ai.badmonkey.agentspaces.spring.AgentSpacesAutoConfiguration;
 import ai.badmonkey.agentspaces.spring.AgentSpacesProperties;
 import ai.badmonkey.agentspaces.spring.Authorizers;
@@ -28,9 +30,14 @@ import ai.badmonkey.agentspaces.spring.DirectiveGates;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.scheduling.TaskExecutors;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 import java.time.InstantSource;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * The fabric as Micronaut beans. Every bean is built by the Spring starter's
@@ -91,9 +98,13 @@ public class AgentSpacesFactory {
     public AgentSpaces agentSpaces(AgentSpacesProperties properties, PeerNode node,
                                    PeerIdentity identity, Authorizers authorizers,
                                    Embedder embedder, InstantSource clock,
-                                   AgentIdentityFactory identities) {
-        return wiring.agentSpaces(properties, node, identity, authorizers, embedder, clock,
-                identities);
+                                   AgentIdentityFactory identities,
+                                   @Nullable SchemaRegistry schemas) {
+        // Issue #16: a SchemaRegistry singleton names the spaces the wiring builds
+        // and every card the binder publishes, so an application may name its
+        // entry types by an ontology namespace; absent, the default rule.
+        return wiring.agentSpacesWithRegistry(properties, node, identity, authorizers, embedder,
+                clock, identities, schemas);
     }
 
     @Singleton
@@ -117,6 +128,18 @@ public class AgentSpacesFactory {
         String group = settings.getGroup().isBlank()
                 ? firstGroup(properties) : settings.getGroup().trim();
         return new FleetContext(spaces, group, identity, authorizers.forGroup(group));
+    }
+
+    /**
+     * The scheduler the runtime's participants (the tool catalogue, the model
+     * server, the usage publisher) run on: Micronaut's scheduled executor.
+     */
+    @Singleton
+    @Bean(preDestroy = "close")
+    @Requires(missingBeans = FleetScheduler.class)
+    public FleetScheduler fleetScheduler(@Named(TaskExecutors.SCHEDULED) ExecutorService scheduled) {
+        return scheduled instanceof ScheduledExecutorService executor
+                ? FleetScheduler.over(executor) : FleetScheduler.virtual("agentspaces-micronaut-");
     }
 
     static String firstGroup(AgentSpacesProperties properties) {

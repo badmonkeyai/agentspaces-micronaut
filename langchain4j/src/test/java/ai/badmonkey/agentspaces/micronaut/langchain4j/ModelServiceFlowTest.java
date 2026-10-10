@@ -15,9 +15,9 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j;
 
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.FleetChatModel;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.FleetStreamingChatModel;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.ModelServer;
+import ai.badmonkey.agentspaces.langchain4j.model.FleetChatModel;
+import ai.badmonkey.agentspaces.langchain4j.model.FleetStreamingChatModel;
+import ai.badmonkey.agentspaces.langchain4j.model.ModelServer;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Contexts;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;

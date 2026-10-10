@@ -15,6 +15,7 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j.tools;
 
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetToolProvider;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.langchain4j.aiservices.AiServiceCreationContext;
 import io.micronaut.langchain4j.aiservices.AiServiceCustomizer;

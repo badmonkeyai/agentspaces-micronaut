@@ -15,24 +15,21 @@
  */
 package ai.badmonkey.agentspaces.micronaut.tools;
 
-/** Names a tool from its action; the default prefixes and sanitizes. */
+/**
+ * The naming strategy as this library first named it; the type now lives in
+ * {@code agentspaces-runtime}. A bean of this type still replaces the default.
+ *
+ * @deprecated implement {@link ai.badmonkey.agentspaces.tools.ToolNamingStrategy}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
 @FunctionalInterface
-public interface ToolNamingStrategy {
+public interface ToolNamingStrategy extends ai.badmonkey.agentspaces.tools.ToolNamingStrategy {
 
-    /** The longest tool name model providers commonly accept. */
-    int MAX_LENGTH = 64;
-
-    String toolName(FleetAction action);
-
-    static ToolNamingStrategy prefixed(String prefix) {
-        return action -> sanitize(prefix + action.name());
+    static ai.badmonkey.agentspaces.tools.ToolNamingStrategy prefixed(String prefix) {
+        return ai.badmonkey.agentspaces.tools.ToolNamingStrategy.prefixed(prefix);
     }
 
     static String sanitize(String name) {
-        String clean = name.replaceAll("[^A-Za-z0-9_-]", "_");
-        if (clean.isEmpty()) {
-            clean = "fleet_tool";
-        }
-        return clean.length() <= MAX_LENGTH ? clean : clean.substring(0, MAX_LENGTH);
+        return ai.badmonkey.agentspaces.tools.ToolNamingStrategy.sanitize(name);
     }
 }

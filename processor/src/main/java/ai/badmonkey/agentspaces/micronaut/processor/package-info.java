@@ -17,7 +17,9 @@
  * Compile-time support for the AgentSpaces annotations under Micronaut,
  * for the annotation-processor path only: named annotation mappers that
  * mark every {@code @SpaceTake}, {@code @SpaceNotify}, {@code @BidFunction},
- * {@code @Ballot}, {@code @OrderedTake}, and {@code @OnDecision} method as
+ * {@code @Ballot}, {@code @OrderedTake}, {@code @OnDecision}, and (0.3.0)
+ * {@code @SpaceJoin}, {@code @Propose}, {@code @OnEstimate}, and
+ * {@code @SpaceReduce} method as
  * an executable the library's processor receives at startup (so a bean with
  * only method annotations enrolls in the fleet), and that keep the
  * reflection the binder needs in a native image for those methods, for

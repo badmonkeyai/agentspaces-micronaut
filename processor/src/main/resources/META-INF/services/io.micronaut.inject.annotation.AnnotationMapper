@@ -4,6 +4,10 @@ ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$BidFunctionMapper
 ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$BallotMapper
 ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$OrderedTakeMapper
 ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$OnDecisionMapper
+ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$SpaceJoinMapper
+ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$ProposeMapper
+ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$OnEstimateMapper
+ai.badmonkey.agentspaces.micronaut.processor.FleetMethodMapper$SpaceReduceMapper
 ai.badmonkey.agentspaces.micronaut.processor.FleetTypeMapper$AgentSpecMapper
 ai.badmonkey.agentspaces.micronaut.processor.FleetTypeMapper$ProvidesCapabilityMapper
 ai.badmonkey.agentspaces.micronaut.processor.FleetTypeMapper$SpaceRefMapper

@@ -10,6 +10,20 @@ The fleet and MCP on Micronaut 5.2, through `micronaut-mcp` 2.1.
 </dependency>
 ```
 
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut-mcp:0.2.0")
+}
+```
+
+```groovy
+// build.gradle
+dependencies {
+    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut-mcp:0.2.0'
+}
+```
+
 ## Export: the fleet's tools on an MCP server
 
 With `micronaut-mcp-server-java-sdk` and `micronaut.mcp.server.transport`
@@ -32,6 +46,29 @@ agentspaces:
   micronaut:
     mcp:
       export: { enabled: true, include-agents: [summarizer, pricer] }
+```
+
+The export also publishes this peer's own tools from
+`agentspaces-langchain4j` (an optional dependency here), each as an MCP tool
+with the `@Tool` method's input schema. `export.capability-tools.vote`
+exports `propose_vote`, `cast_ballot`, `read_tally`, and `read_decision`;
+`export.capability-tools.aggregate` exports `contribute` and
+`read_estimate`; `export.discovery-tools.agents`, `.assets`, and `.data`
+export `find_fleet_agents`, `list_fleet_assets`, and `fetch_fleet_data`.
+All are off by default. An MCP client calling them acts as this peer's
+agent: its ballot is that agent's attested record and its contribution
+joins the group's epoch, so switch them on only for a client that may act
+in this peer's name. These tools are added on start and removed on stop;
+only the catalogue's remote actions change while the peer runs.
+
+```yaml
+agentspaces:
+  micronaut:
+    mcp:
+      export:
+        enabled: true
+        capability-tools: { vote: true, aggregate: true }
+        discovery-tools: { agents: true }
 ```
 
 ## Import: an MCP server's tools as a fleet agent
@@ -71,4 +108,6 @@ agentspaces:
 | Property | Default |
 | --- | --- |
 | `agentspaces.micronaut.mcp.export.enabled` / `include-agents` / `exclude-agents` | `false` / all / none |
+| `agentspaces.micronaut.mcp.export.capability-tools.vote` / `aggregate` / `ballot-lease` / `settle-timeout` | `false` / `false` / `1h` / `10s` |
+| `agentspaces.micronaut.mcp.export.discovery-tools.agents` / `assets` / `data` / `data-space` / `timeout` / `max-result-chars` | `false` ×3 / `data` / `10s` / `8000` |
 | `agentspaces.micronaut.mcp.import.enabled` / `space` / `lease` / `result-lease` / `servers` | `false` / `mcp-calls` / `5m` / `10m` / all |

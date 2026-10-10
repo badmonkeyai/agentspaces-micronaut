@@ -30,7 +30,8 @@
   <description>
     Compile-time support for AgentSpaces annotations in Micronaut: maps the
     core method annotations (@SpaceTake, @SpaceNotify, @BidFunction, @Ballot,
-    @OrderedTake, @OnDecision) to @Executable and @ReflectiveAccess, so a bean
+    @OrderedTake, @OnDecision, and the 0.3.0 set @SpaceJoin, @Propose,
+    @OnEstimate, @SpaceReduce) to @Executable and @ReflectiveAccess, so a bean
     with only method annotations enrolls at startup and native images keep the
     reflection the binder needs. Goes on the annotation-processor path only.
   </description>

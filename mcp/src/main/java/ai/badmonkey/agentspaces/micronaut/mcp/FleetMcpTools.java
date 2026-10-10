@@ -17,10 +17,10 @@ package ai.badmonkey.agentspaces.micronaut.mcp;
 
 import ai.badmonkey.agentspaces.micronaut.FleetParticipant;
 import ai.badmonkey.agentspaces.micronaut.tools.FleetActions;
-import ai.badmonkey.agentspaces.micronaut.tools.FleetTool;
-import ai.badmonkey.agentspaces.micronaut.tools.FleetToolFilter;
-import ai.badmonkey.agentspaces.micronaut.tools.FleetToolsChangedEvent;
-import ai.badmonkey.agentspaces.micronaut.tools.ToolInvocation;
+import ai.badmonkey.agentspaces.tools.FleetTool;
+import ai.badmonkey.agentspaces.tools.FleetToolFilter;
+import ai.badmonkey.agentspaces.tools.FleetToolsChangedEvent;
+import ai.badmonkey.agentspaces.tools.ToolInvocation;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.context.BeanProvider;

@@ -16,11 +16,13 @@
 package ai.badmonkey.agentspaces.micronaut.tools;
 
 import ai.badmonkey.agentspaces.micronaut.MicronautFleetSettings;
+import ai.badmonkey.agentspaces.tools.FleetToolFilter;
+import ai.badmonkey.agentspaces.tools.ToolNamingStrategy;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
-/** The replaceable defaults of the tool catalogue. */
+/** The replaceable defaults of the tool catalogue (the runtime's types; a bean of either alias also counts). */
 @Factory
 @Requires(property = "agentspaces.enabled", notEquals = "false")
 @Requires(property = "agentspaces.micronaut.tools.enabled", notEquals = "false")

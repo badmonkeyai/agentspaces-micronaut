@@ -16,12 +16,12 @@
 package ai.badmonkey.agentspaces.micronaut.langchain4j;
 
 import ai.badmonkey.agentspaces.api.spi.Embedder;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.embed.LangChain4jEmbedder;
+import ai.badmonkey.agentspaces.langchain4j.embed.LangChain4jEmbedder;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Contexts;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.CustomizedOrchestrator;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Orchestrator;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.tools.FleetDiscoveryTools;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.tools.FleetToolProvider;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetDiscoveryTools;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetToolProvider;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.worker.ProviderBuilderListeners;
 import ai.badmonkey.agentspaces.micronaut.tools.FleetActions;
 import dev.langchain4j.service.tool.ToolProviderRequest;

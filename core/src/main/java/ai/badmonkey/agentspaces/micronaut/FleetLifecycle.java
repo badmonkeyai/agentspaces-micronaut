@@ -59,7 +59,7 @@ public class FleetLifecycle {
     private final AgentSpaces spaces;
     private final Authorizers authorizers;
     private final FleetEnroller enroller;
-    private final List<FleetParticipant> participants;
+    private final List<ai.badmonkey.agentspaces.runtime.FleetParticipant> participants;
     private final TaskScheduler scheduler;
     private final Duration tickPeriod;
     private final Duration cardRefreshPeriod;
@@ -68,7 +68,7 @@ public class FleetLifecycle {
 
     public FleetLifecycle(AgentSpacesProperties properties, PeerNode node, AgentSpaces spaces,
                           Authorizers authorizers, FleetEnroller enroller,
-                          List<FleetParticipant> participants,
+                          List<ai.badmonkey.agentspaces.runtime.FleetParticipant> participants,
                           @Named(TaskExecutors.SCHEDULED) TaskScheduler scheduler) {
         this.node = Objects.requireNonNull(node, "node");
         this.spaces = Objects.requireNonNull(spaces, "spaces");
@@ -97,7 +97,7 @@ public class FleetLifecycle {
         }
         enroller.enroll();
         node.startTicking(tickPeriod);
-        for (FleetParticipant participant : participants) {
+        for (ai.badmonkey.agentspaces.runtime.FleetParticipant participant : participants) {
             participant.start();
         }
         refresher = scheduler.scheduleAtFixedRate(cardRefreshPeriod, cardRefreshPeriod, this::refresh);
@@ -112,7 +112,7 @@ public class FleetLifecycle {
         } catch (RuntimeException e) {
             LOG.warn("card refresh failed", e);
         }
-        for (FleetParticipant participant : participants) {
+        for (ai.badmonkey.agentspaces.runtime.FleetParticipant participant : participants) {
             try {
                 participant.refresh();
             } catch (RuntimeException e) {
@@ -136,9 +136,9 @@ public class FleetLifecycle {
             refresher.cancel(false);
             refresher = null;
         }
-        List<FleetParticipant> reversed = new ArrayList<>(participants);
+        List<ai.badmonkey.agentspaces.runtime.FleetParticipant> reversed = new ArrayList<>(participants);
         Collections.reverse(reversed);
-        for (FleetParticipant participant : reversed) {
+        for (ai.badmonkey.agentspaces.runtime.FleetParticipant participant : reversed) {
             try {
                 participant.stop();
             } catch (RuntimeException e) {

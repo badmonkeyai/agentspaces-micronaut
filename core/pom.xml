@@ -81,6 +81,11 @@
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-spring-boot-autoconfigure</artifactId>
     </dependency>
+    <!-- The plain-Java runtime: FleetContext, FleetParticipant, the tool catalogue, the properties binding. -->
+    <dependency>
+      <groupId>ai.badmonkey.agentspaces</groupId>
+      <artifactId>agentspaces-runtime</artifactId>
+    </dependency>
     <dependency>
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-agent</artifactId>
@@ -145,4 +150,29 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <executions>
+          <execution>
+            <!-- The tests compile with the processor, so compile-time
+                 enrollment of a bean with only method annotations is
+                 proven here; the library itself compiles without it. -->
+            <id>default-testCompile</id>
+            <configuration>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>ai.badmonkey.agentspaces</groupId>
+                  <artifactId>agentspaces-micronaut-processor</artifactId>
+                  <version>${project.version}</version>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

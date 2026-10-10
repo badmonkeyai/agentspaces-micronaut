@@ -31,6 +31,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,6 +77,67 @@ class McpExportTest {
                         .build(), HttpResponse.BodyHandlers.ofString());
                 assertThat(listed.body()).contains("fleet_summarizer_Brief");
             }
+        }
+    }
+
+    @Test
+    @Timeout(120)
+    void thePeersCapabilityAndDiscoveryToolsExportWhenSwitchedOn() throws Exception {
+        Map<String, Object> exporter = new HashMap<>(Contexts.fleet(Contexts.freePort(), 0));
+        exporter.put("micronaut.server.port", "-1");
+        exporter.put("micronaut.mcp.server.transport", "HTTP");
+        exporter.put("micronaut.mcp.server.info.name", "fleet");
+        exporter.put("micronaut.mcp.server.info.version", "0.2.0");
+        exporter.put("agentspaces.micronaut.mcp.export.enabled", "true");
+        exporter.put("agentspaces.micronaut.mcp.export.capability-tools.vote", "true");
+        exporter.put("agentspaces.micronaut.mcp.export.capability-tools.aggregate", "true");
+        exporter.put("agentspaces.micronaut.mcp.export.discovery-tools.agents", "true");
+        EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class, exporter);
+        try (ApplicationContext ctx = server.getApplicationContext()) {
+            FleetMcpPeerTools peer = ctx.getBean(FleetMcpPeerTools.class);
+            assertThat(peer.published()).containsExactlyInAnyOrder("propose_vote", "cast_ballot", "read_tally",
+                    "read_decision", "contribute", "read_estimate", "find_fleet_agents");
+            McpStatelessSyncServer mcp = ctx.getBean(McpStatelessSyncServer.class);
+            assertThat(mcp.listTools()).extracting(McpSchema.Tool::name)
+                    .contains("propose_vote", "read_decision", "find_fleet_agents")
+                    .doesNotContain("list_fleet_assets", "fetch_fleet_data");
+            assertThat(mcp.listTools()).filteredOn(tool -> tool.name().equals("cast_ballot")).singleElement()
+                    .satisfies(tool -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> properties = (Map<String, Object>) tool.inputSchema().get("properties");
+                        assertThat(properties).containsKeys("id", "option");
+                    });
+
+            // An MCP client acting as this peer's agent opens a vote, casts, and reads the decision.
+            McpSchema.CallToolResult opened = peer.handler("propose_vote").apply(new McpSchema.CallToolRequest(
+                    "propose_vote", Map.of("id", "plan", "question", "Adopt the plan?",
+                            "options", List.of("yes", "no"), "quorum", 1)));
+            assertThat(opened.isError()).isFalse();
+            assertThat(((McpSchema.TextContent) opened.content().get(0)).text()).contains("\"quorum\":1");
+            McpSchema.CallToolResult cast = peer.handler("cast_ballot").apply(new McpSchema.CallToolRequest(
+                    "cast_ballot", Map.of("id", "plan", "option", "yes")));
+            assertThat(cast.isError()).isFalse();
+            assertThat(Contexts.await(Duration.ofSeconds(30), () -> ((McpSchema.TextContent) peer.handler("read_decision")
+                    .apply(new McpSchema.CallToolRequest("read_decision", Map.of("id", "plan"))).content().get(0))
+                    .text().contains("winner"))).isTrue();
+
+            // An MCP client over HTTP lists them.
+            HttpResponse<String> listed = HttpClient.newHttpClient().send(HttpRequest.newBuilder(
+                            URI.create(server.getURI() + "/mcp"))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json, text/event-stream")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}"))
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(listed.body()).contains("propose_vote").contains("find_fleet_agents");
+        }
+    }
+
+    @Test
+    void thePeerToolsAreOffByDefault() {
+        try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0),
+                Map.of("agentspaces.micronaut.mcp.export.enabled", "true"))) {
+            assertThat(ctx.containsBean(FleetMcpPeerTools.class)).isFalse();
         }
     }
 

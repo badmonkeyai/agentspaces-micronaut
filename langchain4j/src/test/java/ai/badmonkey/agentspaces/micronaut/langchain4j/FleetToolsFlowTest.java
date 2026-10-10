@@ -18,7 +18,7 @@ package ai.badmonkey.agentspaces.micronaut.langchain4j;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Contexts;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Orchestrator;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.ScriptedChatModel;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.tools.FleetToolProvider;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetToolProvider;
 import ai.badmonkey.agentspaces.micronaut.tools.FleetActions;
 import io.micronaut.context.ApplicationContext;
 import org.junit.jupiter.api.Test;

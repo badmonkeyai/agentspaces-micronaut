@@ -105,8 +105,9 @@
   </properties>
 
   <modules>
-    <module>core</module>
+    <!-- The processor first: the library's own tests compile with it. -->
     <module>processor</module>
+    <module>core</module>
     <module>langchain4j</module>
     <module>mcp</module>
   </modules>
@@ -159,6 +160,17 @@
         <groupId>ai.badmonkey.agentspaces</groupId>
         <artifactId>agentspaces-micronaut-mcp</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <!-- The plain-Java runtime and the LangChain4j library this project wires. -->
+      <dependency>
+        <groupId>ai.badmonkey.agentspaces</groupId>
+        <artifactId>agentspaces-runtime</artifactId>
+        <version>${agentspaces.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ai.badmonkey.agentspaces</groupId>
+        <artifactId>agentspaces-langchain4j</artifactId>
+        <version>${agentspaces.version}</version>
       </dependency>
       <!-- The model-service wire records, shared with agentspaces-springai. -->
       <dependency>

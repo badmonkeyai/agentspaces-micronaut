@@ -17,24 +17,16 @@ package ai.badmonkey.agentspaces.micronaut.langchain4j.model;
 
 import java.time.Duration;
 
-/** When a server flushes buffered deltas into a chunk: by count or by time. */
-public interface StreamChunkingPolicy {
+/**
+ * As this bridge first named it; the type now lives in {@code agentspaces-langchain4j}.
+ * A bean of this type still replaces the default.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.langchain4j.model.StreamChunkingPolicy}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface StreamChunkingPolicy extends ai.badmonkey.agentspaces.langchain4j.model.StreamChunkingPolicy {
 
-    boolean flush(int buffered, Duration sinceLastFlush);
-
-    Duration interval();
-
-    static StreamChunkingPolicy of(Duration interval, int maxDeltas) {
-        return new StreamChunkingPolicy() {
-            @Override
-            public boolean flush(int buffered, Duration sinceLastFlush) {
-                return buffered > 0 && (buffered >= maxDeltas || sinceLastFlush.compareTo(interval) >= 0);
-            }
-
-            @Override
-            public Duration interval() {
-                return interval;
-            }
-        };
+    static ai.badmonkey.agentspaces.langchain4j.model.StreamChunkingPolicy of(Duration interval, int maxDeltas) {
+        return ai.badmonkey.agentspaces.langchain4j.model.StreamChunkingPolicy.of(interval, maxDeltas);
     }
 }

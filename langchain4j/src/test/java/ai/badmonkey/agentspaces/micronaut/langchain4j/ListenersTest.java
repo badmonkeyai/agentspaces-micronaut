@@ -22,11 +22,11 @@ import ai.badmonkey.agentspaces.api.space.TakenEntry;
 import ai.badmonkey.agentspaces.api.space.Template;
 import ai.badmonkey.agentspaces.common.id.AgentId;
 import ai.badmonkey.agentspaces.micronaut.FleetContext;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.embed.LangChain4jEmbedder;
+import ai.badmonkey.agentspaces.langchain4j.embed.LangChain4jEmbedder;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Brief;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Contexts;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.usage.FleetUsageListener;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.worker.TakeLeaseListener;
+import ai.badmonkey.agentspaces.langchain4j.usage.FleetUsageListener;
+import ai.badmonkey.agentspaces.langchain4j.worker.TakeLeaseListener;
 import ai.badmonkey.agentspaces.springai.model.wire.ModelUsage;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.message.AiMessage;
@@ -41,9 +41,6 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.TaskScheduler;
-import io.micronaut.inject.qualifiers.Qualifiers;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -65,8 +62,8 @@ class ListenersTest {
             Duration lease = Duration.ofSeconds(1);
             TakenEntry<Brief> taken = tasks.take(Template.of(Brief.class), Lease.of(lease), Duration.ofSeconds(5)).orElseThrow();
             TakeContext take = new TakeContext(taken, lease, new AgentId(ctx.getBean(FleetContext.class).peerId(), "w"), "tasks");
-            TaskScheduler scheduler = ctx.getBean(TaskScheduler.class, Qualifiers.byName(TaskExecutors.SCHEDULED));
-            TakeLeaseListener listener = new TakeLeaseListener(scheduler, Duration.ofMillis(300), () -> Optional.of(take));
+            TakeLeaseListener listener = new TakeLeaseListener(ctx.getBean(ai.badmonkey.agentspaces.runtime.FleetScheduler.class),
+                    Duration.ofMillis(300), () -> Optional.of(take));
 
             Map<Object, Object> attributes = new HashMap<>();
             ChatRequest request = ChatRequest.builder().messages(UserMessage.from("x")).build();

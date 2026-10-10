@@ -50,6 +50,12 @@
       <artifactId>micronaut-mcp-client-langchain4j</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- The capability and discovery tools the export republishes; optional. -->
+    <dependency>
+      <groupId>ai.badmonkey.agentspaces</groupId>
+      <artifactId>agentspaces-langchain4j</artifactId>
+      <optional>true</optional>
+    </dependency>
 
     <dependency>
       <groupId>io.micronaut.test</groupId>

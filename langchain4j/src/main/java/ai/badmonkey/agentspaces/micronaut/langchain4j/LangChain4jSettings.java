@@ -15,6 +15,9 @@
  */
 package ai.badmonkey.agentspaces.micronaut.langchain4j;
 
+import ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.ConversationIdMode;
+import ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.RestartMode;
+import ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Routing;
 import io.micronaut.context.annotation.ConfigurationProperties;
 
 import java.time.Duration;
@@ -29,6 +32,7 @@ public class LangChain4jSettings {
 
     private Tools tools = new Tools();
     private DiscoveryTools discoveryTools = new DiscoveryTools();
+    private CapabilityTools capabilityTools = new CapabilityTools();
     private TakeLease takeLease = new TakeLease();
     private Memory memory = new Memory();
     private ModelClient modelClient = new ModelClient();
@@ -50,6 +54,14 @@ public class LangChain4jSettings {
 
     public void setDiscoveryTools(DiscoveryTools discoveryTools) {
         this.discoveryTools = discoveryTools;
+    }
+
+    public CapabilityTools getCapabilityTools() {
+        return capabilityTools;
+    }
+
+    public void setCapabilityTools(CapabilityTools capabilityTools) {
+        this.capabilityTools = capabilityTools;
     }
 
     public TakeLease getTakeLease() {
@@ -184,6 +196,66 @@ public class LangChain4jSettings {
         public boolean any() {
             return agents || assets || data;
         }
+
+        /** These settings as the library's record. */
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.DiscoveryTools toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.DiscoveryTools(agents, assets, data, dataSpace, timeout, maxResultChars);
+        }
+    }
+
+    /**
+     * The capability tools (layer 4 for a model): {@code vote} adds
+     * {@code propose_vote}, {@code cast_ballot}, {@code read_tally}, and
+     * {@code read_decision}; {@code aggregate} adds {@code contribute} and
+     * {@code read_estimate}. Both off by default.
+     */
+    @ConfigurationProperties("capability-tools")
+    public static class CapabilityTools {
+        private boolean vote;
+        private boolean aggregate;
+        private Duration ballotLease = Duration.ofHours(1);
+        private Duration settleTimeout = Duration.ofSeconds(10);
+
+        public boolean isVote() {
+            return vote;
+        }
+
+        public void setVote(boolean vote) {
+            this.vote = vote;
+        }
+
+        public boolean isAggregate() {
+            return aggregate;
+        }
+
+        public void setAggregate(boolean aggregate) {
+            this.aggregate = aggregate;
+        }
+
+        public Duration getBallotLease() {
+            return ballotLease;
+        }
+
+        public void setBallotLease(Duration ballotLease) {
+            this.ballotLease = ballotLease;
+        }
+
+        public Duration getSettleTimeout() {
+            return settleTimeout;
+        }
+
+        public void setSettleTimeout(Duration settleTimeout) {
+            this.settleTimeout = settleTimeout;
+        }
+
+        public boolean any() {
+            return vote || aggregate;
+        }
+
+        /** These settings as the library's record. */
+        public ai.badmonkey.agentspaces.langchain4j.tools.FleetCapabilityTools.Settings toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.tools.FleetCapabilityTools.Settings(vote, aggregate, ballotLease, settleTimeout);
+        }
     }
 
     /** The take lease renewed on every model round-trip. */
@@ -207,17 +279,12 @@ public class LangChain4jSettings {
         public void setStreamRenewInterval(Duration streamRenewInterval) {
             this.streamRenewInterval = streamRenewInterval;
         }
+
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.TakeLease toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.TakeLease(enabled, streamRenewInterval);
+        }
     }
 
-    /** How a conversation is keyed. */
-    public enum ConversationIdMode {
-        /** The in-flight take's entry id; falls back to the agent's name. */
-        TAKE,
-        /** The in-flight take's agent name. */
-        AGENT,
-        /** Whatever memory id the caller passes. */
-        EXPLICIT
-    }
 
     /** Chat memory in a replicated space. */
     @ConfigurationProperties("memory")
@@ -276,13 +343,13 @@ public class LangChain4jSettings {
         public void setMaxMessages(int maxMessages) {
             this.maxMessages = maxMessages;
         }
+
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Memory toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Memory(enabled, space, ttl, conversationId, maxMessages);
+        }
     }
 
     /** What a restarted stream does. */
-    public enum RestartMode {
-        FAIL,
-        RESTART
-    }
 
     /** The {@code FleetChatModel}. */
     @ConfigurationProperties("model-client")
@@ -346,13 +413,13 @@ public class LangChain4jSettings {
                 this.onRestart = onRestart;
             }
         }
+
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.ModelClient toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.ModelClient(enabled, space, model, timeout, stream.getOnRestart());
+        }
     }
 
     /** How requests are routed to servers. */
-    public enum Routing {
-        MODEL,
-        PRICE
-    }
 
     /** The {@code ModelServer}. */
     @ConfigurationProperties("model-server")
@@ -465,6 +532,11 @@ public class LangChain4jSettings {
         public void setConcurrency(int concurrency) {
             this.concurrency = concurrency;
         }
+
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.ModelServer toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.ModelServer(enabled, space, models, routing, prices,
+                    lease, chunkInterval, chunkMaxDeltas, chunkLease, responseLease, concurrency);
+        }
     }
 
     /** Which embedder ranks semantic discovery. */
@@ -502,6 +574,10 @@ public class LangChain4jSettings {
 
         public void setCacheSize(int cacheSize) {
             this.cacheSize = cacheSize;
+        }
+
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Embedder toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Embedder(model, cacheSize);
         }
     }
 
@@ -543,6 +619,10 @@ public class LangChain4jSettings {
 
         public void setPublishInterval(Duration publishInterval) {
             this.publishInterval = publishInterval;
+        }
+
+        public ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Usage toSettings() {
+            return new ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Usage(enabled, metricsSpace, entryLease, publishInterval);
         }
     }
 }

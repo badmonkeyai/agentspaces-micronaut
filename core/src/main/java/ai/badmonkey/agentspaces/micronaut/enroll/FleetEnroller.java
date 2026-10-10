@@ -19,8 +19,16 @@ import ai.badmonkey.agentspaces.agent.AgentBinder;
 import ai.badmonkey.agentspaces.agent.AgentSpaces;
 import ai.badmonkey.agentspaces.agent.annotation.AgentSpec;
 import ai.badmonkey.agentspaces.agent.annotation.BidFunction;
+import ai.badmonkey.agentspaces.agent.annotation.OrderedTake;
+import ai.badmonkey.agentspaces.agent.annotation.OnDecision;
+import ai.badmonkey.agentspaces.agent.annotation.Ballot;
+import ai.badmonkey.agentspaces.agent.annotation.OnEstimate;
+import ai.badmonkey.agentspaces.agent.annotation.Part;
+import ai.badmonkey.agentspaces.agent.annotation.Propose;
 import ai.badmonkey.agentspaces.agent.annotation.ProvidesCapability;
+import ai.badmonkey.agentspaces.agent.annotation.SpaceJoin;
 import ai.badmonkey.agentspaces.agent.annotation.SpaceNotify;
+import ai.badmonkey.agentspaces.agent.annotation.SpaceReduce;
 import ai.badmonkey.agentspaces.agent.annotation.SpaceRef;
 import ai.badmonkey.agentspaces.agent.annotation.SpaceTake;
 import ai.badmonkey.agentspaces.micronaut.MicronautFleetSettings;
@@ -58,6 +66,8 @@ import java.util.Set;
  * <p>Beans whose only fleet annotations are on methods enroll through
  * {@link #enroll(Object, String)}, which the annotation-processor module's
  * executable-method processor calls, or by carrying {@code @SpaceAgent}.
+ * The 0.3.0 method annotations ({@code @SpaceJoin}, {@code @Propose},
+ * {@code @OnEstimate}, {@code @SpaceReduce}) enroll the same way.
  *
  * <p>An agent bean must be free of Micronaut AOP: an interceptor binding
  * ({@code @Retryable}, {@code @Cacheable}, {@code @Transactional}, ...)
@@ -117,8 +127,10 @@ public class FleetEnroller {
         // Micronaut AOP subclasses carry none of the user class's annotations;
         // decide on the user class, then refuse the proxy with the reason.
         Class<?> user = userClass(type);
-        boolean enrolls = AgentBinder.isAgentType(user) || AgentBinder.hasBindings(user)
-                || user.isAnnotationPresent(ProvidesCapability.class);
+        // The core binder's declaredBindings covers every method annotation, the
+        // 0.3.0 set included (its @SpaceReduce branch landed 2026-10-09).
+        boolean coreBinds = AgentBinder.isAgentType(user) || AgentBinder.hasBindings(user);
+        boolean enrolls = coreBinds || user.isAnnotationPresent(ProvidesCapability.class);
         if (!enrolls) {
             return false;
         }
@@ -152,7 +164,14 @@ public class FleetEnroller {
         return List.copyOf(enrolled);
     }
 
-    /** The space names a bean's annotations reference; inferred (empty) names excluded. */
+
+    /**
+     * The space names a bean's annotations reference; inferred (empty) names
+     * excluded. Covers the 0.3.0 set: {@code @SpaceJoin} ({@code space},
+     * {@code resultSpace}, each {@code @Part} space), {@code @Propose}
+     * ({@code space}, {@code vote}), {@code @OnEstimate}
+     * ({@code resultSpace}), and {@code @SpaceReduce} ({@code space}).
+     */
     static Set<String> referencedSpaces(Class<?> type) {
         Set<String> referenced = new LinkedHashSet<>();
         for (Method method : type.getMethods()) {
@@ -169,6 +188,41 @@ public class FleetEnroller {
             BidFunction bid = method.getAnnotation(BidFunction.class);
             if (bid != null) {
                 referenced.add(bid.space());
+            }
+            Ballot ballot = method.getAnnotation(Ballot.class);
+            if (ballot != null) {
+                referenced.add(ballot.space());
+            }
+            OnDecision decision = method.getAnnotation(OnDecision.class);
+            if (decision != null) {
+                referenced.add(decision.space());
+                referenced.add(decision.resultSpace());
+            }
+            OrderedTake ordered = method.getAnnotation(OrderedTake.class);
+            if (ordered != null) {
+                referenced.add(ordered.space());
+                referenced.add(ordered.resultSpace());
+            }
+            SpaceJoin join = method.getAnnotation(SpaceJoin.class);
+            if (join != null) {
+                referenced.add(join.space());
+                referenced.add(join.resultSpace());
+                for (Part part : join.parts()) {
+                    referenced.add(part.space());
+                }
+            }
+            Propose propose = method.getAnnotation(Propose.class);
+            if (propose != null) {
+                referenced.add(propose.space());
+                referenced.add(propose.vote());
+            }
+            OnEstimate estimate = method.getAnnotation(OnEstimate.class);
+            if (estimate != null) {
+                referenced.add(estimate.resultSpace());
+            }
+            SpaceReduce reduce = method.getAnnotation(SpaceReduce.class);
+            if (reduce != null) {
+                referenced.add(reduce.space());
             }
         }
         for (Class<?> at = type; at != null && at != Object.class; at = at.getSuperclass()) {

@@ -96,4 +96,32 @@ public abstract class FleetMethodMapper implements NamedAnnotationMapper {
             super("OnDecision");
         }
     }
+
+    /** {@code @SpaceJoin} (0.3.0). */
+    public static final class SpaceJoinMapper extends FleetMethodMapper {
+        public SpaceJoinMapper() {
+            super("SpaceJoin");
+        }
+    }
+
+    /** {@code @Propose} (0.3.0). */
+    public static final class ProposeMapper extends FleetMethodMapper {
+        public ProposeMapper() {
+            super("Propose");
+        }
+    }
+
+    /** {@code @OnEstimate} (0.3.0). */
+    public static final class OnEstimateMapper extends FleetMethodMapper {
+        public OnEstimateMapper() {
+            super("OnEstimate");
+        }
+    }
+
+    /** {@code @SpaceReduce} (0.3.0). */
+    public static final class SpaceReduceMapper extends FleetMethodMapper {
+        public SpaceReduceMapper() {
+            super("SpaceReduce");
+        }
+    }
 }

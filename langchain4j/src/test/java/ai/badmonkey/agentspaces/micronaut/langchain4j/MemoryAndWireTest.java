@@ -17,9 +17,9 @@ package ai.badmonkey.agentspaces.micronaut.langchain4j;
 
 import ai.badmonkey.agentspaces.common.codec.CborCodec;
 import ai.badmonkey.agentspaces.micronaut.FleetContext;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.memory.FleetChatMemoryProvider;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.memory.SpaceChatMemoryStore;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.WireMapping;
+import ai.badmonkey.agentspaces.langchain4j.memory.FleetChatMemoryProvider;
+import ai.badmonkey.agentspaces.langchain4j.memory.SpaceChatMemoryStore;
+import ai.badmonkey.agentspaces.langchain4j.model.WireMapping;
 import ai.badmonkey.agentspaces.micronaut.langchain4j.support.Contexts;
 import ai.badmonkey.agentspaces.springai.model.wire.ConversationSnapshot;
 import ai.badmonkey.agentspaces.springai.model.wire.WireMessage;

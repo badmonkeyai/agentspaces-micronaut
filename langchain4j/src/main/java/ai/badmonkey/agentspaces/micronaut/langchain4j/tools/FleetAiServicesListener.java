@@ -16,7 +16,8 @@
 package ai.badmonkey.agentspaces.micronaut.langchain4j.tools;
 
 import ai.badmonkey.agentspaces.micronaut.langchain4j.LangChain4jSettings;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.memory.FleetChatMemoryProvider;
+import ai.badmonkey.agentspaces.langchain4j.memory.FleetChatMemoryProvider;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetToolProvider;
 import dev.langchain4j.service.AiServices;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.event.BeanCreatedEvent;

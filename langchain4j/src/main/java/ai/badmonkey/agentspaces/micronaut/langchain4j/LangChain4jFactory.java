@@ -18,33 +18,40 @@ package ai.badmonkey.agentspaces.micronaut.langchain4j;
 import ai.badmonkey.agentspaces.api.spi.Authorizer;
 import ai.badmonkey.agentspaces.api.spi.Embedder;
 import ai.badmonkey.agentspaces.capabilities.aggregate.PushSumAggregate;
+import ai.badmonkey.agentspaces.langchain4j.embed.LangChain4jEmbedder;
+import ai.badmonkey.agentspaces.langchain4j.memory.ConversationIdResolver;
+import ai.badmonkey.agentspaces.langchain4j.memory.FleetChatMemoryProvider;
+import ai.badmonkey.agentspaces.langchain4j.memory.SpaceChatMemoryStore;
+import ai.badmonkey.agentspaces.langchain4j.model.FleetChatModel;
+import ai.badmonkey.agentspaces.langchain4j.model.FleetStreamingChatModel;
+import ai.badmonkey.agentspaces.langchain4j.model.ModelCatalog;
+import ai.badmonkey.agentspaces.langchain4j.model.ModelRequestRouter;
+import ai.badmonkey.agentspaces.langchain4j.model.ModelServer;
+import ai.badmonkey.agentspaces.langchain4j.model.StreamChunkingPolicy;
+import ai.badmonkey.agentspaces.langchain4j.model.StreamRestartPolicy;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetCapabilityTools;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetDiscoveryTools;
+import ai.badmonkey.agentspaces.langchain4j.tools.FleetToolProvider;
+import ai.badmonkey.agentspaces.langchain4j.usage.FleetUsage;
+import ai.badmonkey.agentspaces.langchain4j.usage.FleetUsageListener;
+import ai.badmonkey.agentspaces.langchain4j.usage.FleetUsagePublisher;
+import ai.badmonkey.agentspaces.langchain4j.usage.UsagePanel;
+import ai.badmonkey.agentspaces.langchain4j.usage.UsageSink;
+import ai.badmonkey.agentspaces.langchain4j.worker.TakeLeaseListener;
 import ai.badmonkey.agentspaces.micronaut.FleetContext;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.embed.LangChain4jEmbedder;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.memory.ConversationIdResolver;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.memory.FleetChatMemoryProvider;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.memory.SpaceChatMemoryStore;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.FleetChatModel;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.FleetStreamingChatModel;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.ModelCatalog;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.ModelRequestRouter;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.ModelServer;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.StreamChunkingPolicy;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.model.StreamRestartPolicy;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.usage.FleetUsage;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.usage.FleetUsageListener;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.usage.FleetUsagePublisher;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.usage.UsagePanel;
-import ai.badmonkey.agentspaces.micronaut.langchain4j.usage.UsageSink;
+import ai.badmonkey.agentspaces.micronaut.tools.FleetActions;
+import ai.badmonkey.agentspaces.runtime.FleetScheduler;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import io.micronaut.context.annotation.Factory;
+import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Secondary;
+import io.micronaut.context.condition.Condition;
+import io.micronaut.context.condition.ConditionContext;
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.TaskScheduler;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.slf4j.LoggerFactory;
@@ -54,13 +61,63 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** The LangChain4j bridge's beans, one group per feature, each behind its property. */
+/**
+ * The LangChain4j bridge's beans, one group per feature, each behind its
+ * property: Micronaut wiring over the classes of {@code agentspaces-langchain4j}.
+ */
 @Factory
 @Requires(property = "agentspaces.enabled", notEquals = "false")
 public class LangChain4jFactory {
 
-    // ---------------------------------------------------------------- L3 memory
+    // ---------------------------------------------------------------- L1, L2 tools
+    @Singleton
+    @Requires(property = "agentspaces.micronaut.langchain4j.tools.enabled", notEquals = "false")
+    public FleetDiscoveryTools fleetDiscoveryTools(FleetContext fleet, LangChain4jSettings settings,
+                                                   @Nullable FleetActions actions) {
+        return new FleetDiscoveryTools(fleet, settings.getDiscoveryTools().toSettings(), actions);
+    }
 
+    /**
+     * The capability tools, present when {@code capability-tools.vote} or
+     * {@code capability-tools.aggregate} is on: the model acts as this peer's
+     * agent through the vote and aggregate clients the group resolves.
+     */
+    @Singleton
+    @Requires(property = "agentspaces.micronaut.langchain4j.tools.enabled", notEquals = "false")
+    @Requires(condition = CapabilityToolsOn.class)
+    public FleetCapabilityTools fleetCapabilityTools(FleetContext fleet, LangChain4jSettings settings) {
+        return new FleetCapabilityTools(fleet, settings.getCapabilityTools().toSettings());
+    }
+
+    @Singleton
+    @Primary
+    @Named("fleet")
+    @Requires(property = "agentspaces.micronaut.langchain4j.tools.enabled", notEquals = "false")
+    @Requires(beans = FleetActions.class)
+    public FleetToolProvider fleetToolProvider(FleetActions actions, @Nullable FleetDiscoveryTools discovery,
+                                               @Nullable FleetCapabilityTools capabilities) {
+        return new FleetToolProvider(actions, discovery, capabilities);
+    }
+
+    /** Either capability-tools flag on. */
+    public static final class CapabilityToolsOn implements Condition {
+        private static final String PREFIX = "agentspaces.micronaut.langchain4j.capability-tools.";
+
+        @Override
+        public boolean matches(ConditionContext context) {
+            return context.getProperty(PREFIX + "vote", Boolean.class).orElse(false)
+                    || context.getProperty(PREFIX + "aggregate", Boolean.class).orElse(false);
+        }
+    }
+
+    // ---------------------------------------------------------------- L3 take lease
+    @Singleton
+    @Requires(property = "agentspaces.micronaut.langchain4j.take-lease.enabled", notEquals = "false")
+    public TakeLeaseListener takeLeaseListener(FleetScheduler scheduler, LangChain4jSettings settings) {
+        return new TakeLeaseListener(scheduler, settings.getTakeLease().getStreamRenewInterval());
+    }
+
+    // ---------------------------------------------------------------- L3 memory
     @Singleton
     @Named("fleet")
     @Requires(property = "agentspaces.micronaut.langchain4j.memory.enabled", value = "true")
@@ -87,7 +144,6 @@ public class LangChain4jFactory {
     }
 
     // ---------------------------------------------------------------- L4 model client
-
     @Singleton
     @Requires(missingBeans = StreamRestartPolicy.class)
     public StreamRestartPolicy streamRestartPolicy(LangChain4jSettings settings) {
@@ -99,8 +155,7 @@ public class LangChain4jFactory {
     @Named("fleet")
     @Requires(property = "agentspaces.micronaut.langchain4j.model-client.enabled", value = "true")
     public FleetChatModel fleetChatModel(FleetContext fleet, LangChain4jSettings settings, StreamRestartPolicy restart,
-                                         @Named(TaskExecutors.SCHEDULED) TaskScheduler scheduler,
-                                         List<ChatModelListener> listeners) {
+                                         FleetScheduler scheduler, List<ChatModelListener> listeners) {
         LangChain4jSettings.ModelClient client = settings.getModelClient();
         return new FleetChatModel(
                 fleet.requiredSpace(client.getSpace(), "agentspaces.micronaut.langchain4j.model-client.space"),
@@ -117,7 +172,6 @@ public class LangChain4jFactory {
     }
 
     // ---------------------------------------------------------------- L4 model server
-
     @Singleton
     @Requires(property = "agentspaces.micronaut.langchain4j.model-server.enabled", value = "true")
     @Requires(missingBeans = ModelCatalog.class)
@@ -144,7 +198,7 @@ public class LangChain4jFactory {
     @Requires(missingBeans = ModelRequestRouter.class)
     public ModelRequestRouter modelRequestRouter(LangChain4jSettings settings) {
         LangChain4jSettings.ModelServer server = settings.getModelServer();
-        return server.getRouting() == LangChain4jSettings.Routing.PRICE
+        return server.getRouting() == ai.badmonkey.agentspaces.langchain4j.LangChain4jSettings.Routing.PRICE
                 ? ModelRequestRouter.byPrice(server.getPrices()) : ModelRequestRouter.byModel();
     }
 
@@ -159,8 +213,7 @@ public class LangChain4jFactory {
     @Singleton
     @Requires(property = "agentspaces.micronaut.langchain4j.model-server.enabled", value = "true")
     public ModelServer modelServer(FleetContext fleet, ModelCatalog catalog, ModelRequestRouter router,
-                                   StreamChunkingPolicy chunking,
-                                   @Named(TaskExecutors.SCHEDULED) TaskScheduler scheduler,
+                                   StreamChunkingPolicy chunking, FleetScheduler scheduler,
                                    LangChain4jSettings settings) {
         LangChain4jSettings.ModelServer server = settings.getModelServer();
         for (String model : catalog.models()) {
@@ -177,7 +230,6 @@ public class LangChain4jFactory {
     }
 
     // ---------------------------------------------------------------- L5 embeddings
-
     @Singleton
     @Requires(property = "agentspaces.micronaut.langchain4j.embedder.type", value = "langchain4j")
     public Embedder langChain4jEmbedder(@Nullable EmbeddingModel model, LangChain4jSettings settings) {
@@ -191,7 +243,6 @@ public class LangChain4jFactory {
     }
 
     // ---------------------------------------------------------------- L6 usage
-
     @Singleton
     @Requires(property = "agentspaces.micronaut.langchain4j.usage.enabled", value = "true")
     public FleetUsage fleetUsage(FleetContext fleet, LangChain4jSettings settings) {
@@ -219,7 +270,7 @@ public class LangChain4jFactory {
 
     @Singleton
     @Requires(property = "agentspaces.micronaut.langchain4j.usage.enabled", value = "true")
-    public FleetUsagePublisher fleetUsagePublisher(FleetUsage usage, @Named(TaskExecutors.SCHEDULED) TaskScheduler scheduler,
+    public FleetUsagePublisher fleetUsagePublisher(FleetUsage usage, FleetScheduler scheduler,
                                                    LangChain4jSettings settings) {
         return new FleetUsagePublisher(usage, scheduler, settings.getUsage().getPublishInterval());
     }

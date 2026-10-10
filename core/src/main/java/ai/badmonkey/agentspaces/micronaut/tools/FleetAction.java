@@ -16,101 +16,17 @@
 package ai.badmonkey.agentspaces.micronaut.tools;
 
 import ai.badmonkey.agentspaces.agent.remote.RemoteAction;
-import ai.badmonkey.agentspaces.common.id.AgentId;
-import ai.badmonkey.agentspaces.common.id.PeerId;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 /**
- * One invocable action of a foreign AgentCard, as the tool bridges see it:
- * a stable name, the card's sanitized description and goals, who performs
- * it, the entry types it consumes and produces, and the invocation. The
- * same shape as the Spring AI module's, over the core's {@link RemoteAction}.
+ * The fleet action as this library first named it; the type now lives in
+ * {@code agentspaces-runtime} as {@link ai.badmonkey.agentspaces.tools.FleetAction}.
+ *
+ * @deprecated use {@link ai.badmonkey.agentspaces.tools.FleetAction}; this alias goes in the next release
  */
-public interface FleetAction {
+@Deprecated(since = "0.2.0", forRemoval = true)
+public interface FleetAction extends ai.badmonkey.agentspaces.tools.FleetAction {
 
-    /** A stable name, {@code <agent>_<InputType>}. */
-    String name();
-
-    /** The card's description, stripped of control characters and capped. */
-    String description();
-
-    /** The card's goals, sanitized. */
-    List<String> goals();
-
-    /** The agent that performs the action. */
-    AgentId agent();
-
-    /** The peer that issued the card. */
-    PeerId issuer();
-
-    /** Whether the card carries the agent's own certified key. */
-    boolean attested();
-
-    /** The entry type the action consumes: the tool's input. */
-    Class<?> inputType();
-
-    /** The entry type the action produces: the tool's result. */
-    Class<?> outputType();
-
-    /** Writes the input as a task and awaits the correlated result. */
-    Optional<Object> invoke(Object input, Duration timeout);
-
-    static FleetAction of(RemoteAction action) {
-        Objects.requireNonNull(action, "action");
-        return new FleetAction() {
-            @Override
-            public String name() {
-                return action.name();
-            }
-
-            @Override
-            public String description() {
-                return action.description();
-            }
-
-            @Override
-            public List<String> goals() {
-                return action.goals();
-            }
-
-            @Override
-            public AgentId agent() {
-                return action.card().agent();
-            }
-
-            @Override
-            public PeerId issuer() {
-                return action.card().issuer();
-            }
-
-            @Override
-            public boolean attested() {
-                return action.card().attested();
-            }
-
-            @Override
-            public Class<?> inputType() {
-                return action.inputType();
-            }
-
-            @Override
-            public Class<?> outputType() {
-                return action.outputType();
-            }
-
-            @Override
-            public Optional<Object> invoke(Object input, Duration timeout) {
-                return action.invoke(input, timeout);
-            }
-
-            @Override
-            public String toString() {
-                return action.toString();
-            }
-        };
+    static ai.badmonkey.agentspaces.tools.FleetAction of(RemoteAction action) {
+        return ai.badmonkey.agentspaces.tools.FleetAction.of(action);
     }
 }

@@ -66,6 +66,11 @@
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-micronaut</artifactId>
     </dependency>
+    <!-- The behavior: this module is Micronaut wiring over it. -->
+    <dependency>
+      <groupId>ai.badmonkey.agentspaces</groupId>
+      <artifactId>agentspaces-langchain4j</artifactId>
+    </dependency>
     <dependency>
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-model-wire</artifactId>

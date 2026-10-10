@@ -44,12 +44,154 @@ public class McpSettings {
         this.importSettings = importSettings;
     }
 
-    /** Fleet tools published through the MCP server. */
+    /**
+     * Fleet tools published through the MCP server: the catalogue's remote
+     * actions (filtered by {@code include-agents} and {@code exclude-agents}),
+     * plus this peer's own capability tools and discovery tools when their
+     * flags are on.
+     */
     @ConfigurationProperties("export")
     public static class Export {
         private boolean enabled;
         private List<String> includeAgents = new ArrayList<>();
         private List<String> excludeAgents = new ArrayList<>();
+        private CapabilityTools capabilityTools = new CapabilityTools();
+        private DiscoveryTools discoveryTools = new DiscoveryTools();
+
+        public CapabilityTools getCapabilityTools() {
+            return capabilityTools;
+        }
+
+        public void setCapabilityTools(CapabilityTools capabilityTools) {
+            this.capabilityTools = capabilityTools;
+        }
+
+        public DiscoveryTools getDiscoveryTools() {
+            return discoveryTools;
+        }
+
+        public void setDiscoveryTools(DiscoveryTools discoveryTools) {
+            this.discoveryTools = discoveryTools;
+        }
+
+        /**
+         * The capability tools as MCP tools: {@code vote} exports
+         * {@code propose_vote}, {@code cast_ballot}, {@code read_tally}, and
+         * {@code read_decision}; {@code aggregate} exports {@code contribute}
+         * and {@code read_estimate}. Both off by default; an MCP client that
+         * calls them acts as this peer's agent.
+         */
+        @ConfigurationProperties("capability-tools")
+        public static class CapabilityTools {
+            private boolean vote;
+            private boolean aggregate;
+            private Duration ballotLease = Duration.ofHours(1);
+            private Duration settleTimeout = Duration.ofSeconds(10);
+
+            public boolean isVote() {
+                return vote;
+            }
+
+            public void setVote(boolean vote) {
+                this.vote = vote;
+            }
+
+            public boolean isAggregate() {
+                return aggregate;
+            }
+
+            public void setAggregate(boolean aggregate) {
+                this.aggregate = aggregate;
+            }
+
+            public Duration getBallotLease() {
+                return ballotLease;
+            }
+
+            public void setBallotLease(Duration ballotLease) {
+                this.ballotLease = ballotLease;
+            }
+
+            public Duration getSettleTimeout() {
+                return settleTimeout;
+            }
+
+            public void setSettleTimeout(Duration settleTimeout) {
+                this.settleTimeout = settleTimeout;
+            }
+
+            public boolean any() {
+                return vote || aggregate;
+            }
+        }
+
+        /**
+         * The discovery tools as MCP tools: {@code agents} exports
+         * {@code find_fleet_agents}, {@code assets} exports
+         * {@code list_fleet_assets}, {@code data} exports
+         * {@code fetch_fleet_data}. All off by default.
+         */
+        @ConfigurationProperties("discovery-tools")
+        public static class DiscoveryTools {
+            private boolean agents;
+            private boolean assets;
+            private boolean data;
+            private String dataSpace = "data";
+            private Duration timeout = Duration.ofSeconds(10);
+            private int maxResultChars = 8000;
+
+            public boolean isAgents() {
+                return agents;
+            }
+
+            public void setAgents(boolean agents) {
+                this.agents = agents;
+            }
+
+            public boolean isAssets() {
+                return assets;
+            }
+
+            public void setAssets(boolean assets) {
+                this.assets = assets;
+            }
+
+            public boolean isData() {
+                return data;
+            }
+
+            public void setData(boolean data) {
+                this.data = data;
+            }
+
+            public String getDataSpace() {
+                return dataSpace;
+            }
+
+            public void setDataSpace(String dataSpace) {
+                this.dataSpace = dataSpace;
+            }
+
+            public Duration getTimeout() {
+                return timeout;
+            }
+
+            public void setTimeout(Duration timeout) {
+                this.timeout = timeout;
+            }
+
+            public int getMaxResultChars() {
+                return maxResultChars;
+            }
+
+            public void setMaxResultChars(int maxResultChars) {
+                this.maxResultChars = maxResultChars;
+            }
+
+            public boolean any() {
+                return agents || assets || data;
+            }
+        }
 
         public boolean isEnabled() {
             return enabled;

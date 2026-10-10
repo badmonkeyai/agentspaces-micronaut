@@ -103,8 +103,8 @@ public class MicronautFleetSettings {
         private List<String> excludeAgents = new ArrayList<>();
         private boolean requireAttested;
         private Duration timeout = Duration.ofSeconds(30);
-        private ai.badmonkey.agentspaces.micronaut.tools.ToolInvocation.OnTimeout onTimeout =
-                ai.badmonkey.agentspaces.micronaut.tools.ToolInvocation.OnTimeout.RESULT;
+        private ai.badmonkey.agentspaces.tools.ToolInvocation.OnTimeout onTimeout =
+                ai.badmonkey.agentspaces.tools.ToolInvocation.OnTimeout.RESULT;
         private Duration refreshInterval = Duration.ofSeconds(5);
         private int max = 64;
 
@@ -156,11 +156,11 @@ public class MicronautFleetSettings {
             this.timeout = timeout;
         }
 
-        public ai.badmonkey.agentspaces.micronaut.tools.ToolInvocation.OnTimeout getOnTimeout() {
+        public ai.badmonkey.agentspaces.tools.ToolInvocation.OnTimeout getOnTimeout() {
             return onTimeout;
         }
 
-        public void setOnTimeout(ai.badmonkey.agentspaces.micronaut.tools.ToolInvocation.OnTimeout onTimeout) {
+        public void setOnTimeout(ai.badmonkey.agentspaces.tools.ToolInvocation.OnTimeout onTimeout) {
             this.onTimeout = onTimeout;
         }
 
@@ -178,6 +178,14 @@ public class MicronautFleetSettings {
 
         public void setMax(int max) {
             this.max = max;
+        }
+
+        /** These settings as the runtime's record. */
+        public ai.badmonkey.agentspaces.tools.ToolSettings toSettings() {
+            return ai.badmonkey.agentspaces.tools.ToolSettings.builder()
+                    .prefix(prefix).includeAgents(includeAgents).excludeAgents(excludeAgents)
+                    .requireAttested(requireAttested).timeout(timeout).onTimeout(onTimeout)
+                    .refreshInterval(refreshInterval).max(max).build();
         }
     }
 

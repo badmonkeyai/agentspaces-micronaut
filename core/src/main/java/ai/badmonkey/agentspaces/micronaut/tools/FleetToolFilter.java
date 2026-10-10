@@ -16,27 +16,19 @@
 package ai.badmonkey.agentspaces.micronaut.tools;
 
 import java.util.List;
-import java.util.Set;
 
-/** Decides which fleet actions become tools; the default is the include and exclude lists. */
+/**
+ * The filter as this library first named it; the type now lives in
+ * {@code agentspaces-runtime}. A bean of this type still replaces the default.
+ *
+ * @deprecated implement {@link ai.badmonkey.agentspaces.tools.FleetToolFilter}; this alias goes in the next release
+ */
+@Deprecated(since = "0.2.0", forRemoval = true)
 @FunctionalInterface
-public interface FleetToolFilter {
+public interface FleetToolFilter extends ai.badmonkey.agentspaces.tools.FleetToolFilter {
 
-    boolean include(FleetAction action);
-
-    static FleetToolFilter of(List<String> include, List<String> exclude, boolean requireAttested) {
-        Set<String> in = Set.copyOf(include);
-        Set<String> out = Set.copyOf(exclude);
-        return action -> {
-            String local = action.agent().localName();
-            String full = action.agent().encoded();
-            if (out.contains(local) || out.contains(full)) {
-                return false;
-            }
-            if (!in.isEmpty() && !in.contains(local) && !in.contains(full)) {
-                return false;
-            }
-            return !requireAttested || action.attested();
-        };
+    static ai.badmonkey.agentspaces.tools.FleetToolFilter of(List<String> include, List<String> exclude,
+                                                             boolean requireAttested) {
+        return ai.badmonkey.agentspaces.tools.FleetToolFilter.of(include, exclude, requireAttested);
     }
 }
