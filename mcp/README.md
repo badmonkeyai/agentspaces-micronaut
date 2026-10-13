@@ -6,21 +6,21 @@ The fleet and MCP on Micronaut 5.2, through `micronaut-mcp` 2.1.
 <dependency>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut-mcp</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
 </dependency>
 ```
 
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut-mcp:0.2.0")
+    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut-mcp:0.3.0")
 }
 ```
 
 ```groovy
 // build.gradle
 dependencies {
-    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut-mcp:0.2.0'
+    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut-mcp:0.3.0'
 }
 ```
 
@@ -41,7 +41,7 @@ its own at startup, since the fleet's arrive later.
 ```yaml
 micronaut:
   mcp:
-    server: { transport: HTTP, info: { name: fleet, version: 0.2.0 } }
+    server: { transport: HTTP, info: { name: fleet, version: 0.3.0 } }
 agentspaces:
   micronaut:
     mcp:
