@@ -1,12 +1,119 @@
 # agentspaces-micronaut
 
+## Introducing AgentSpaces by Bad Monkey AI
+
+**A peer-to-peer coordination fabric for agents, services, and the people who work with them.**
+
+AgentSpaces is a P2P framework to quickly discover and join P2P networks, where agents, software services, and people share assets, queries, results, and coordinate. The framework helps you build fleets of agents, tie in other software, and coordinate across them with a replicated tuple space, quorum building, and more. Agents post work, claim tasks, publish results, vote on decisions, and recover from each other's failures. There is no broker, no registry, no scheduler, and no server to keep alive. Coordination is peer-to-peer, secured end to end, and replicated across the fleet.
+
+## Quick start: build your first agent with Micronaut
+
+An agent is a method. Its parameter is the work it takes, and its return value is the next entry in the space. In Micronaut the method sits on a plain `@Singleton`: the space hands it one `Order` at a time under a lease, and the returned `Shipment` completes the order. The `agentspaces-micronaut-processor` annotation processor enrolls the bean at compile time, so the one fleet annotation on the method is all the bean needs.
+
+**1. Add the dependency and the processor.** Micronaut 5 compiles to Java 25 bytecode, so the application runs on JDK 25.
+
+```xml
+<dependency>
+  <groupId>ai.badmonkey.agentspaces</groupId>
+  <artifactId>agentspaces-micronaut</artifactId>
+  <version>0.4.0</version>
+</dependency>
+```
+
+```xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <configuration>
+    <annotationProcessorPaths combine.children="append">
+      <path>
+        <groupId>ai.badmonkey.agentspaces</groupId>
+        <artifactId>agentspaces-micronaut-processor</artifactId>
+        <version>0.4.0</version>
+      </path>
+    </annotationProcessorPaths>
+  </configuration>
+</plugin>
+```
+
+**2. Configure the peer.** These are the Spring Boot starter's `agentspaces.*` properties, unchanged. The default `mtls` security profile secures every link, so the file has no security block. The `${shop.*}` placeholders let you start a second instance from the command line.
+
+```yaml
+micronaut:
+  application:
+    name: shop
+
+agentspaces:
+  bind: 127.0.0.1:${shop.port:7701}
+  groups:
+    - name: shop
+      founding: shop-v1
+      seeds: ${shop.seeds:}      # empty on the first instance
+      spaces:
+        - name: orders
+```
+
+**3. Write the agent.** Two records name the entries, and the bean takes one `Order` and returns a `Shipment`. `main` starts the application and, when you pass an order, writes it and prints the shipment. The listings omit imports.
+
+```java
+public record Order(String orderId, String item) {
+}
+
+public record Shipment(String orderId, String item, String by) {
+}
+```
+
+```java
+@Singleton
+public class Fulfiller {
+
+    @SpaceTake(lease = "30s")
+    public Shipment ship(Order order) {
+        return new Shipment(order.orderId(), order.item(), "fulfiller");
+    }
+}
+```
+
+```java
+public class ShopApp {
+
+    public static void main(String[] args) throws InterruptedException {
+        ApplicationContext context = Micronaut.run(ShopApp.class, args);
+        String item = context.getProperty("shop.order", String.class).orElse("");
+        if (item.isBlank()) {
+            Thread.currentThread().join();               // an agent instance: serve until killed
+        } else {                                         // a desk instance: write one order, read the shipment
+            Space orders = context.getBean(AgentSpaces.class).group("shop").space("orders");
+            orders.write(new Order("o-1", item), Lease.of(Duration.ofMinutes(10)));
+            orders.read(Template.of(Shipment.class), Duration.ofSeconds(30)).ifPresent(System.out::println);
+            context.close();
+        }
+    }
+}
+```
+
+**4. Run two instances.** Start the first instance, then a second one that joins through it and writes an order.
+
+```
+mvn -q compile exec:java -Dexec.mainClass=shop.ShopApp
+mvn -q compile exec:java -Dexec.mainClass=shop.ShopApp -Dexec.args="--shop.port=7702 --shop.seeds=127.0.0.1:7701 --shop.order=kite"
+```
+
+The second instance prints the shipment. Either instance can take the order, because both run the same agent.
+
+**5. Kill one.** Add `System.out.println("shipping " + order.orderId());` and `Thread.sleep(10_000);` at the top of `ship` (the method then needs `throws InterruptedException`). Start both instances, write an order from the second, and run `kill -9` on whichever instance prints `shipping`. If you killed the first instance, the second prints the shipment. If you killed the second, the first prints `shipping o-1` again when the 30 second lease lapses.
+
+The sections below add the rest: agents and their return conventions, assets and the fleet as a service registry, management endpoints, and the LangChain4j and MCP bridges.
+
+## About agentspaces-micronaut
+
 AgentSpaces for Micronaut microservices. Add the library and the
 `agentspaces.*` properties the Spring Boot starter reads, and the service is a
 peer: its annotated beans work the fleet's spaces and publish AgentCards, its
 `AssetProvider` beans and its own HTTP presence publish AssetCards, other
 services resolve it through `@Client`, and its health and management
 endpoints show the fleet. A standalone project on the published AgentSpaces
-0.3.0 libraries and Micronaut 5.2. The library is Java 21 bytecode; Micronaut
+0.4.0 libraries and Micronaut 5.2. The library is Java 21 bytecode; Micronaut
 5.2 itself is Java 25 bytecode, so applications run on JDK 25.
 
 The library is on Maven Central under the group `ai.badmonkey.agentspaces`;
@@ -19,7 +126,7 @@ Maven (`pom.xml`):
 <dependency>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut</artifactId>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
 </dependency>
 ```
 
@@ -27,7 +134,7 @@ Gradle Kotlin DSL (`build.gradle.kts`):
 
 ```kotlin
 dependencies {
-    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut:0.3.0")
+    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut:0.4.0")
 }
 ```
 
@@ -35,7 +142,7 @@ Gradle Groovy DSL (`build.gradle`):
 
 ```groovy
 dependencies {
-    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut:0.3.0'
+    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut:0.4.0'
 }
 ```
 
@@ -62,6 +169,171 @@ transports and TLS, groups founded or joined, spaces with admission, content
 keys, capabilities, the console, and the A2A gateway. One YAML fragment
 configures a peer under either framework. Durations take ISO-8601 (`PT5M`)
 or the short form (`5m`, `250ms`).
+
+## How to use AI with AgentSpaces
+
+At the end of this section you will have run three fleets of Micronaut
+application contexts in one JVM, over TCP on free loopback ports, with no
+network and no model key: a plain `@Singleton` whose one fleet annotation is
+on a method, enrolled at compile time, completing work a second service
+writes; a LangChain4j `@AiService` on a peer that holds no provider key,
+planning with the fleet's agents as its tools and the fleet's model, beside an
+MCP gateway that exports the same tools; and an embedded server published as
+an AssetCard that an analyst with no network path to it queries through the
+space. Each snippet is cut from the named test or example, verbatim with the
+imports elided.
+
+### 1. Build an agent and hand it work from another service
+
+The bean carries no `@SpaceAgent` and no `@AgentSpec`: this module's tests
+compile with `agentspaces-micronaut-processor`, so the `@SpaceTake` method
+alone enrolls it (the startup log reads `enrolled ...$Summarizer
+(compile-time, via summarize)`). The second context seeds from the first,
+writes a task, and reads the finding the method's return value became.
+`Contexts.fleet(port, seedPort)` is the YAML above as a property map: one
+founded group, `it-fleet`, with the `tasks`, `findings`, and `data` spaces.
+(`core/src/test/.../ReadmeExamplesTest.java`; run
+`cd agentspaces-micronaut && mvn -q test -pl core -Dtest=ReadmeExamplesTest`)
+
+```java
+@Singleton                                                       // a plain bean: the processor enrolls it at compile time
+@Requires(property = "test.app", value = "readme-summarizer")
+public static class Summarizer {
+
+    @SpaceTake(space = "tasks", lease = "1m", pollTimeout = "PT0.2S", resultSpace = "findings")
+    public ItFinding summarize(ItTask task) {
+        return new ItFinding(task.topic(), "summary of " + task.topic());
+    }
+}
+
+int workerPort = Contexts.freePort();
+try (ApplicationContext worker = Contexts.run(Contexts.fleet(workerPort, 0), Map.of("test.app", "readme-summarizer"));
+     ApplicationContext writer = Contexts.run(Contexts.fleet(Contexts.freePort(), workerPort), Map.of())) {
+    assertThat(worker.getBean(FleetEnroller.class).enrolled()).singleElement().isInstanceOf(Summarizer.class);
+
+    AgentSpaces.GroupContext fleet = writer.getBean(AgentSpaces.class).group("it-fleet");
+    fleet.space("tasks").write(new ItTask("tuple spaces", 1), Lease.of(Duration.ofMinutes(10)));
+    Optional<ItFinding> finding = fleet.space("findings").read(Template.of(ItFinding.class), Duration.ofSeconds(60));
+    assertThat(finding).hasValueSatisfying(f -> assertThat(f.summary()).isEqualTo("summary of tuple spaces"));
+}
+```
+
+The two services share the space and nothing else: no queue, no registry
+entry, and no URL for the agent. A `@Controller` can call `summarize` for
+HTTP as well, and the AgentCard lists it as an action any fleet agent
+invokes through `RemoteActions`.
+
+### 2. A model shared across peers, with no key on the orchestrator
+
+Example 17 (`examples/micronaut-ai-fleet`) runs three peers. The worker holds
+the only model: its summarizer agent calls it directly, and
+`model-server.enabled: true` serves it to the fleet. The orchestrator sets
+`model-client.enabled: true` and no key: the LangChain4j bridge hands its
+`@AiService` the fleet's agents as live tools and routes its model calls
+through the space to the worker. The gateway exports the same tools on an
+MCP server. The test replaces the provider model with a scripted one, so the
+whole loop runs with no API key.
+(`Orchestrator.java`, `Workers.java`, `MicronautAiFleetTest.java`, with the worker and gateway
+contexts and the closing braces elided; run
+`mvn -q test -Pexamples -pl examples/micronaut-ai-fleet -Dtest=MicronautAiFleetTest`)
+
+```java
+@AiService
+@Requires(env = "orchestrator")
+public interface Orchestrator {
+
+    @SystemMessage("You coordinate a fleet of specialist agents. Use the fleet tools to get work done,"
+            + " then answer with a short plan.")
+    String plan(@UserMessage String request);
+}
+
+@SpaceAgent(name = "summarizer", description = "Summarizes a topic into a short briefing", goals = {"summarize"})
+@Requires(env = "worker")
+public static class Summarizer {
+    private final ChatModel model;
+
+    public Summarizer(ChatModel model) {
+        this.model = model;
+    }
+
+    @SpaceTake(space = "tasks", lease = "2m", pollTimeout = "PT0.2S", description = "Summarizes a topic")
+    public Summary summarize(Brief brief) {
+        return new Summary(brief.topic(), model.chat("Summarize '" + brief.topic() + "' in "
+                + brief.sentences() + " sentences."));
+    }
+}
+
+// ... the worker context, holding the only model (scripted in the test), then:
+ApplicationContext orchestrator = ApplicationContext.run(Map.of(
+        "agentspaces.bind", "127.0.0.1:" + freePort(),
+        "agentspaces.groups[0].seeds[0]", "127.0.0.1:" + workerPort,
+        "langchain4j.open-ai.enabled", "false"), "orchestrator")) {
+// ... the MCP gateway context, then:
+FleetActions tools = orchestrator.getBean(FleetActions.class);
+assertThat(await(Duration.ofSeconds(60), () -> tools.current().size() == 2)).isTrue();
+
+String plan = orchestrator.getBean(Orchestrator.class)
+        .plan("Plan a two-day offsite for 12 people.");
+assertThat(plan).startsWith("Plan:").contains("team retreats").contains("504.0");
+```
+
+The plan comes back through three model round trips served over the space,
+and `FleetMcpTools.published()` on the gateway lists `fleet_summarizer_Brief`
+and `fleet_pricer_PriceRequest` once the cards arrive (the same test asserts
+both). A Spring Boot peer serving the model through `agentspaces-springai`
+answers the same requests, because both speak `agentspaces-model-wire`.
+
+### 3. The service itself as an asset card
+
+With `service-asset.enabled` the embedded server publishes an AssetCard once
+it has bound: the application name, its URI, shape `http`, freshness `live`.
+With `service-asset.query=get` and an allow-list, an analyst peer with no
+route to the server fetches an allowed path through the data space with
+`DataQueryClient`; a path outside the list is answered with an error naming
+the rule. (`core/src/test/.../ServiceAssetTest.theEmbeddedServerPublishesAnAssetCardAndAnswersAllowedGets`;
+run `mvn -q test -pl core -Dtest=ServiceAssetTest`)
+
+```java
+Map<String, Object> props = new HashMap<>(Contexts.fleet(port, seedPort));
+props.put("micronaut.server.port", "-1");
+props.put("micronaut.application.name", "orders");
+props.put("test.server", "true");
+props.put("agentspaces.micronaut.service-asset.enabled", "true");
+props.put("agentspaces.micronaut.service-asset.query", query);
+props.put("agentspaces.micronaut.service-asset.allowed-paths[0]", "/hello");
+return props;
+
+EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class, service(seedPort, 0, "get"));
+try (ApplicationContext orders = server.getApplicationContext();
+     ApplicationContext analyst = Contexts.run(Contexts.fleet(Contexts.freePort(), seedPort), Map.of())) {
+    ServiceAssetCard serviceAsset = orders.getBean(ServiceAssetCard.class);
+    assertThat(Contexts.await(Duration.ofSeconds(10), () -> serviceAsset.card().isPresent())).isTrue();
+    AssetCard card = serviceAsset.card().orElseThrow();
+    assertThat(card.asset()).isEqualTo("orders");
+    assertThat(card.uri()).isEqualTo(server.getURI().toString());
+    assertThat(card.shape()).isEqualTo("http");
+    assertThat(card.freshness()).isEqualTo("live");
+    assertThat(card.access()).containsEntry("mode", "http").containsEntry("query", "aspace:cap/data-query");
+
+    FleetContext fleet = analyst.getBean(FleetContext.class);
+    assertThat(Contexts.await(Duration.ofSeconds(30), () -> !fleet.group().discovery()
+            .find(AssetCard.class, c -> "orders".equals(c.asset())).isEmpty())).isTrue();
+
+    DataQueryClient client = new DataQueryClient(fleet.group().space("data"), "analyst",
+            analyst.getBean(Authorizer.class));
+    assertThat(client.fetch("orders", Map.of("path", "/hello"), Duration.ofSeconds(30)))
+            .hasValueSatisfying(fetched -> {
+                assertThat(fetched.result().error()).isNull();
+                assertThat(fetched.result().rows()).singleElement()
+                        .satisfies(row -> {
+                            assertThat(row).containsEntry("status", "200");
+                            assertThat(row.get("body")).isEqualTo("hello from orders");
+                        });
+            });
+    assertThat(client.fetch("orders", Map.of("path", "/health"), Duration.ofSeconds(30)))
+            .hasValueSatisfying(fetched -> assertThat(fetched.result().error())
+                    .contains("not allowed"));
+```
 
 ## Agents
 
@@ -121,21 +393,21 @@ startup executables and also keeps the binder's reflection in native images:
 <path>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut-processor</artifactId>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
 </path>
 ```
 
 ```kotlin
 // build.gradle.kts, under the Micronaut Gradle plugin
 dependencies {
-    annotationProcessor("ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.3.0")
+    annotationProcessor("ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.4.0")
 }
 ```
 
 ```groovy
 // build.gradle
 dependencies {
-    annotationProcessor 'ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.3.0'
+    annotationProcessor 'ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.4.0'
 }
 ```
 
@@ -252,10 +524,10 @@ as fleet actions.
 | `ai.badmonkey.agentspaces:agentspaces-micronaut-langchain4j` | the LangChain4j bridge |
 | `ai.badmonkey.agentspaces:agentspaces-micronaut-mcp` | the MCP bridge |
 
-All at version 0.3.0 on Maven Central under `ai.badmonkey.agentspaces`, on
-the AgentSpaces core 0.3.0 and
+All at version 0.4.0 on Maven Central under `ai.badmonkey.agentspaces`, on
+the AgentSpaces core 0.4.0 and
 [agentspaces-model-wire](https://github.com/badmonkeyai/agentspaces-model-wire)
-0.3.0, which they bring in transitively. Add any of them as the library above
+0.4.0, which they bring in transitively. Add any of them as the library above
 is added, with `implementation` and an explicit version. Every jar carries the licence and notice under `META-INF`; releases
 ship sources and javadoc jars, signed. `mvn clean verify` builds and tests
 the libraries on JDK 25; `-Pexamples` adds the examples; `-Pcentral-publish`

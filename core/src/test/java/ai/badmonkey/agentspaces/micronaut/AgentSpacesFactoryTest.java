@@ -49,6 +49,25 @@ class AgentSpacesFactoryTest {
         }
     }
 
+    /** SRAD dtls-support DT-H-09: the DTLS listener block works from Micronaut properties alone. */
+    @Test
+    void aDtlsListenerBlockListensFromProperties() throws Exception {
+        int udp;
+        try (java.net.DatagramSocket probe = new java.net.DatagramSocket(0)) {
+            udp = probe.getLocalPort();
+        }
+        try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0), Map.of(
+                "agentspaces.transport.dtls.enabled", "true",
+                "agentspaces.transport.dtls.bind", "127.0.0.1:" + udp,
+                "agentspaces.transport.dtls.idle-timeout", "30s"))) {
+            ai.badmonkey.agentspaces.peering.node.PeerNode node =
+                    ctx.getBean(ai.badmonkey.agentspaces.peering.node.PeerNode.class);
+            assertThat(node.transportSchemes()).contains("dtls");
+            assertThat(node.advertisedEndpoints()).extracting(e -> e.transport() + "@" + e.address())
+                    .contains("dtls@127.0.0.1:" + udp);
+        }
+    }
+
     @Test
     void anApplicationEmbedderReplacesTheDefault() {
         try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0),

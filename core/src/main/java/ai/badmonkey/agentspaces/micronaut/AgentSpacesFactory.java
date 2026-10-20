@@ -18,15 +18,20 @@ package ai.badmonkey.agentspaces.micronaut;
 import ai.badmonkey.agentspaces.agent.AgentIdentityFactory;
 import ai.badmonkey.agentspaces.agent.AgentSpaces;
 import ai.badmonkey.agentspaces.api.spi.Authorizer;
+import ai.badmonkey.agentspaces.api.spi.BeaconLocator;
 import ai.badmonkey.agentspaces.api.spi.Embedder;
 import ai.badmonkey.agentspaces.api.spi.SchemaRegistry;
+import ai.badmonkey.agentspaces.api.spi.Transport;
 import ai.badmonkey.agentspaces.identity.PeerIdentity;
 import ai.badmonkey.agentspaces.peering.node.PeerNode;
 import ai.badmonkey.agentspaces.runtime.FleetScheduler;
 import ai.badmonkey.agentspaces.spring.AgentSpacesAutoConfiguration;
 import ai.badmonkey.agentspaces.spring.AgentSpacesProperties;
 import ai.badmonkey.agentspaces.spring.Authorizers;
+import ai.badmonkey.agentspaces.spring.BootstrapChainFactory;
 import ai.badmonkey.agentspaces.spring.DirectiveGates;
+import ai.badmonkey.agentspaces.spring.PeerNodeConfigurer;
+import ai.badmonkey.agentspaces.spring.PeerNodeCustomizer;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
@@ -36,6 +41,7 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 import java.time.InstantSource;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -66,10 +72,29 @@ public class AgentSpacesFactory {
         return wiring.agentSpacesIdentity(properties);
     }
 
+    /**
+     * The node, with the application's seams applied (SRAD DB-C-04, DB-C-05,
+     * DB-C-09): every {@link Transport} bean registered by its scheme (the
+     * default TCP and TLS transports only where no bean claims the scheme),
+     * every {@link PeerNodeCustomizer} applied to the builder before
+     * {@code build()}, every {@link PeerNodeConfigurer} after the transports
+     * are listening and before any group is joined. Micronaut injects the
+     * beans of each type in {@code @Order} order, or an empty list.
+     *
+     * @param properties   the properties
+     * @param identity     the peer identity
+     * @param transports   the application's transports
+     * @param customizers  the builder hooks
+     * @param configurers  the node hooks
+     * @return the node
+     */
     @Singleton
     @Requires(missingBeans = PeerNode.class)
-    public PeerNode agentSpacesNode(AgentSpacesProperties properties, PeerIdentity identity) {
-        return wiring.agentSpacesNode(properties, identity);
+    public PeerNode agentSpacesNode(AgentSpacesProperties properties, PeerIdentity identity,
+                                    List<Transport> transports,
+                                    List<PeerNodeCustomizer> customizers,
+                                    List<PeerNodeConfigurer> configurers) {
+        return wiring.buildNode(properties, identity, transports, customizers, configurers, null);
     }
 
     @Singleton
@@ -99,12 +124,18 @@ public class AgentSpacesFactory {
                                    PeerIdentity identity, Authorizers authorizers,
                                    Embedder embedder, InstantSource clock,
                                    AgentIdentityFactory identities,
-                                   @Nullable SchemaRegistry schemas) {
+                                   @Nullable SchemaRegistry schemas,
+                                   List<BeaconLocator> locators,
+                                   @Nullable BootstrapChainFactory chains) {
         // Issue #16: a SchemaRegistry singleton names the spaces the wiring builds
         // and every card the binder publishes, so an application may name its
         // entry types by an ontology namespace; absent, the default rule.
+        // SRAD DB-C-01, DB-C-02, DB-C-09: every BeaconLocator bean (in @Order
+        // order) joins the group's chain when it applies to the group; a
+        // BootstrapChainFactory bean composes the chain, else the default.
         return wiring.agentSpacesWithRegistry(properties, node, identity, authorizers, embedder,
-                clock, identities, schemas);
+                clock, identities, schemas, locators,
+                chains == null ? BootstrapChainFactory.defaults() : chains);
     }
 
     @Singleton

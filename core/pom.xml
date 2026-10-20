@@ -22,7 +22,7 @@
   <parent>
     <groupId>ai.badmonkey.agentspaces</groupId>
     <artifactId>agentspaces-micronaut-parent</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
   </parent>
 
   <artifactId>agentspaces-micronaut</artifactId>
@@ -81,7 +81,7 @@
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-spring-boot-autoconfigure</artifactId>
     </dependency>
-    <!-- The plain-Java runtime: FleetContext, FleetParticipant, the tool catalogue, the properties binding. -->
+        <!-- The plain-Java runtime: FleetContext, FleetParticipant, the tool catalogue, the properties binding. -->
     <dependency>
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-runtime</artifactId>
@@ -146,12 +146,22 @@
     </dependency>
     <dependency>
       <groupId>ai.badmonkey.agentspaces</groupId>
+      <artifactId>agentspaces-transport-dtls</artifactId>
+      <version>${agentspaces.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-test-support</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>

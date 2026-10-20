@@ -28,10 +28,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FleetConfigurationTest {
 
+    /** A port nobody holds: a fixed one collides with whatever else runs on the machine (a portal on 7500). */
+    private static int freePort() {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Test
     void bindsTheSpringStarterPropertySetFromTheEnvironment() {
+        int port = freePort();
         try (ApplicationContext ctx = ApplicationContext.run(Map.of(
-                "agentspaces.bind", "127.0.0.1:7500",
+                "agentspaces.bind", "127.0.0.1:" + port,
                 "agentspaces.tick-millis", "200",
                 "agentspaces.groups[0].name", "it-fleet",
                 "agentspaces.groups[0].founding", "it-fleet-v1",
@@ -42,7 +52,7 @@ class FleetConfigurationTest {
                 "agentspaces.security.profile", "dev-local",
                 "agentspaces.security.grants.raft-voter[0]", "peer:abc"))) {
             AgentSpacesProperties p = ctx.getBean(AgentSpacesProperties.class);
-            assertThat(p.getBind()).isEqualTo("127.0.0.1:7500");
+            assertThat(p.getBind()).isEqualTo("127.0.0.1:" + port);
             assertThat(p.getTickMillis()).isEqualTo(200);
             assertThat(p.getGroups()).hasSize(1);
             AgentSpacesProperties.Group group = p.getGroups().get(0);
@@ -80,6 +90,24 @@ class FleetConfigurationTest {
     void rejectsUnknownKeysSoTyposSurfaceAtStartup() {
         assertThatThrownBy(() -> FleetConfiguration.bind(Map.of("tick-milis", "5")))
                 .hasMessageContaining("tick-milis");
+    }
+
+    @Test
+    void theBlocksOtherProjectsBindAreDroppedBeforeTheConversion() {
+        // agentspaces-bootstrap, -beacon, and -social bind these themselves (SRAD §6.5);
+        // Boot ignores them in the starter, and so must this host's binding.
+        AgentSpacesProperties p = FleetConfiguration.bind(Map.of(
+                "bind", "127.0.0.1:7500",
+                "bootstrap", Map.of("domain", "corp.example", "order", List.of("seeds", "dns-srv")),
+                "beacon", Map.of("enabled", "true"),
+                "social", Map.of("default-beacon", "x"),
+                "groups", List.of(Map.of("name", "g", "founding", "g-v1",
+                        "bootstrap", Map.of("dns-srv", "_aspace._tcp.x"),
+                        "bootstrap.timeout", "PT2S",          // the flattened form inside a list element
+                        "social", Map.of("create", "true")))));
+        assertThat(p.getBind()).isEqualTo("127.0.0.1:7500");
+        assertThat(p.getGroups()).extracting(AgentSpacesProperties.Group::getName).containsExactly("g");
+        assertThat(p.getGroups().get(0).getFounding()).isEqualTo("g-v1");
     }
 
     @Test
