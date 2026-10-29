@@ -99,14 +99,15 @@ public class LangChain4jFactory {
         return new FleetToolProvider(actions, discovery, capabilities);
     }
 
-    /** Either capability-tools flag on. */
+    /** Any capability-tools flag on. */
     public static final class CapabilityToolsOn implements Condition {
         private static final String PREFIX = "agentspaces.micronaut.langchain4j.capability-tools.";
 
         @Override
         public boolean matches(ConditionContext context) {
             return context.getProperty(PREFIX + "vote", Boolean.class).orElse(false)
-                    || context.getProperty(PREFIX + "aggregate", Boolean.class).orElse(false);
+                    || context.getProperty(PREFIX + "aggregate", Boolean.class).orElse(false)
+                    || context.getProperty(PREFIX + "content", Boolean.class).orElse(false);
         }
     }
 

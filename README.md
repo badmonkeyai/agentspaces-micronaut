@@ -475,6 +475,12 @@ without a token or OIDC gate.
 | `agentspaces.micronaut.registry.enabled` | `false` | Resolve `@Client` ids through fleet AssetCards. |
 | `agentspaces.micronaut.management.enabled` | `true` | Health, info, endpoint, meters. |
 
+The starter's own blocks bind unchanged through the shared wiring, `agentspaces.content.*`
+included (`enabled`, `piece-size`, `escalate-above`, `store.backends`, `store.path`; SPEC v0.1.23
+§8): with it on, `group.provider(Content.TYPE)` is the content swarm, a space entry above
+`escalate-above` travels as an artifact, and the console gains the `content` panel. The LangChain4j
+module's `capability-tools.content` adds the content tools to the model.
+
 ## How it is built
 
 The library reuses the Spring starter's wiring without Spring. The published

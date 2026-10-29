@@ -102,6 +102,11 @@
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-console</artifactId>
     </dependency>
+    <!-- The content swarm (srad/large-networks-bulk-data.md §7.2): the console panel and the swarm type. -->
+    <dependency>
+      <groupId>ai.badmonkey.agentspaces</groupId>
+      <artifactId>agentspaces-content</artifactId>
+    </dependency>
     <dependency>
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-a2a</artifactId>

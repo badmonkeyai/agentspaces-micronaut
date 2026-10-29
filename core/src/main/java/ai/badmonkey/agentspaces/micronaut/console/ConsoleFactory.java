@@ -19,6 +19,7 @@ import ai.badmonkey.agentspaces.agent.AgentSpaces;
 import ai.badmonkey.agentspaces.console.ConsoleCommand;
 import ai.badmonkey.agentspaces.console.ConsolePanel;
 import ai.badmonkey.agentspaces.console.ConsoleView;
+import ai.badmonkey.agentspaces.console.ContentPanel;
 import ai.badmonkey.agentspaces.console.FleetCommander;
 import ai.badmonkey.agentspaces.console.FleetConsoleServer;
 import ai.badmonkey.agentspaces.peering.node.PeerNode;
@@ -58,6 +59,14 @@ public class ConsoleFactory {
     public FleetCommander fleetCommander(AgentSpacesProperties properties, AgentSpaces spaces,
                                          ConsoleView view, List<ConsoleCommand> commands) {
         return wiring.agentSpacesCommander(properties, spaces, view, commands);
+    }
+
+    /** The Content panel (srad/large-networks-bulk-data.md LB-O-03) when the content swarm is on. */
+    @Singleton
+    @Requires(missingBeans = ContentPanel.class)
+    @Requires(property = "agentspaces.content.enabled", value = "true")
+    public ContentPanel contentPanel(PeerNode node, AgentSpaces spaces) {
+        return wiring.agentSpacesContentPanel(node, spaces);
     }
 
     @Singleton

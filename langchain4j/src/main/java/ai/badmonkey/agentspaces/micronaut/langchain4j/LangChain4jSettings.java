@@ -213,8 +213,27 @@ public class LangChain4jSettings {
     public static class CapabilityTools {
         private boolean vote;
         private boolean aggregate;
+        private boolean content;
         private Duration ballotLease = Duration.ofHours(1);
         private Duration settleTimeout = Duration.ofSeconds(10);
+        private Duration fetchTimeout = Duration.ofMinutes(10);
+
+        public boolean isContent() {
+            return content;
+        }
+
+        /** The content swarm tools; {@code agentspaces.content.enabled} must build the swarm. */
+        public void setContent(boolean content) {
+            this.content = content;
+        }
+
+        public Duration getFetchTimeout() {
+            return fetchTimeout;
+        }
+
+        public void setFetchTimeout(Duration fetchTimeout) {
+            this.fetchTimeout = fetchTimeout;
+        }
 
         public boolean isVote() {
             return vote;
@@ -249,12 +268,13 @@ public class LangChain4jSettings {
         }
 
         public boolean any() {
-            return vote || aggregate;
+            return vote || aggregate || content;
         }
 
         /** These settings as the library's record. */
         public ai.badmonkey.agentspaces.langchain4j.tools.FleetCapabilityTools.Settings toSettings() {
-            return new ai.badmonkey.agentspaces.langchain4j.tools.FleetCapabilityTools.Settings(vote, aggregate, ballotLease, settleTimeout);
+            return new ai.badmonkey.agentspaces.langchain4j.tools.FleetCapabilityTools.Settings(vote, aggregate, content,
+                    ballotLease, settleTimeout, fetchTimeout);
         }
     }
 
