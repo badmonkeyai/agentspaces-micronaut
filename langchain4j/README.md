@@ -13,7 +13,7 @@ serve each other's model calls and resume each other's conversations.
 <dependency>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut-langchain4j</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
 </dependency>
 <!-- and, on the annotation-processor path, micronaut-langchain4j-processor -->
 ```
@@ -21,7 +21,7 @@ serve each other's model calls and resume each other's conversations.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut-langchain4j:0.4.0")
+    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut-langchain4j:0.5.0")
     annotationProcessor("io.micronaut.langchain4j:micronaut-langchain4j-processor")
 }
 ```
@@ -29,7 +29,7 @@ dependencies {
 ```groovy
 // build.gradle
 dependencies {
-    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut-langchain4j:0.4.0'
+    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut-langchain4j:0.5.0'
     annotationProcessor 'io.micronaut.langchain4j:micronaut-langchain4j-processor'
 }
 ```

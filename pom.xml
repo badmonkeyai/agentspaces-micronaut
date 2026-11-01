@@ -22,7 +22,7 @@
 
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut-parent</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <packaging>pom</packaging>
   <name>AgentSpaces Micronaut :: Parent</name>
   <description>
@@ -83,7 +83,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <agentspaces.version>0.4.0</agentspaces.version>
+    <agentspaces.version>0.5.0</agentspaces.version>
     <micronaut.version>5.2.1</micronaut.version>
     <!-- Micronaut 5 is on Jackson 3; the AgentSpaces core (CBOR codec, golden
          vectors) is on Jackson 2.21.7. Different packages, both on the path. -->

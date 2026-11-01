@@ -16,7 +16,7 @@ An agent is a method. Its parameter is the work it takes, and its return value i
 <dependency>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
 </dependency>
 ```
 
@@ -29,7 +29,7 @@ An agent is a method. Its parameter is the work it takes, and its return value i
       <path>
         <groupId>ai.badmonkey.agentspaces</groupId>
         <artifactId>agentspaces-micronaut-processor</artifactId>
-        <version>0.4.0</version>
+        <version>0.5.0</version>
       </path>
     </annotationProcessorPaths>
   </configuration>
@@ -113,7 +113,7 @@ peer: its annotated beans work the fleet's spaces and publish AgentCards, its
 `AssetProvider` beans and its own HTTP presence publish AssetCards, other
 services resolve it through `@Client`, and its health and management
 endpoints show the fleet. A standalone project on the published AgentSpaces
-0.4.0 libraries and Micronaut 5.2. The library is Java 21 bytecode; Micronaut
+0.5.0 libraries and Micronaut 5.2. The library is Java 21 bytecode; Micronaut
 5.2 itself is Java 25 bytecode, so applications run on JDK 25.
 
 The library is on Maven Central under the group `ai.badmonkey.agentspaces`;
@@ -126,7 +126,7 @@ Maven (`pom.xml`):
 <dependency>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
 </dependency>
 ```
 
@@ -134,7 +134,7 @@ Gradle Kotlin DSL (`build.gradle.kts`):
 
 ```kotlin
 dependencies {
-    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut:0.4.0")
+    implementation("ai.badmonkey.agentspaces:agentspaces-micronaut:0.5.0")
 }
 ```
 
@@ -142,7 +142,7 @@ Gradle Groovy DSL (`build.gradle`):
 
 ```groovy
 dependencies {
-    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut:0.4.0'
+    implementation 'ai.badmonkey.agentspaces:agentspaces-micronaut:0.5.0'
 }
 ```
 
@@ -393,21 +393,21 @@ startup executables and also keeps the binder's reflection in native images:
 <path>
   <groupId>ai.badmonkey.agentspaces</groupId>
   <artifactId>agentspaces-micronaut-processor</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
 </path>
 ```
 
 ```kotlin
 // build.gradle.kts, under the Micronaut Gradle plugin
 dependencies {
-    annotationProcessor("ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.4.0")
+    annotationProcessor("ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.5.0")
 }
 ```
 
 ```groovy
 // build.gradle
 dependencies {
-    annotationProcessor 'ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.4.0'
+    annotationProcessor 'ai.badmonkey.agentspaces:agentspaces-micronaut-processor:0.5.0'
 }
 ```
 
@@ -530,10 +530,10 @@ as fleet actions.
 | `ai.badmonkey.agentspaces:agentspaces-micronaut-langchain4j` | the LangChain4j bridge |
 | `ai.badmonkey.agentspaces:agentspaces-micronaut-mcp` | the MCP bridge |
 
-All at version 0.4.0 on Maven Central under `ai.badmonkey.agentspaces`, on
-the AgentSpaces core 0.4.0 and
+All at version 0.5.0 on Maven Central under `ai.badmonkey.agentspaces`, on
+the AgentSpaces core 0.5.0 and
 [agentspaces-model-wire](https://github.com/badmonkeyai/agentspaces-model-wire)
-0.4.0, which they bring in transitively. Add any of them as the library above
+0.5.0, which they bring in transitively. Add any of them as the library above
 is added, with `implementation` and an explicit version. Every jar carries the licence and notice under `META-INF`; releases
 ship sources and javadoc jars, signed. `mvn clean verify` builds and tests
 the libraries on JDK 25; `-Pexamples` adds the examples; `-Pcentral-publish`

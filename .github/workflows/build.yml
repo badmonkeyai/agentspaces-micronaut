@@ -25,9 +25,9 @@ permissions:
   contents: read
 
 env:
-  # The companion wire records. Until agentspaces-model-wire 0.4.0 is on
+  # The companion wire records. Until agentspaces-model-wire 0.5.0 is on
   # Maven Central, CI builds it from its repository first; once it is, the
-  # two "wire" steps can be removed. The AgentSpaces core 0.4.0 resolves
+  # two "wire" steps can be removed. The AgentSpaces core 0.5.0 resolves
   # from Maven Central.
   MODEL_WIRE_REF: main
 
