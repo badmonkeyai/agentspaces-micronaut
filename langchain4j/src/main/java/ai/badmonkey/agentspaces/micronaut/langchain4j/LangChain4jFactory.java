@@ -17,7 +17,6 @@ package ai.badmonkey.agentspaces.micronaut.langchain4j;
 
 import ai.badmonkey.agentspaces.api.spi.Authorizer;
 import ai.badmonkey.agentspaces.api.spi.Embedder;
-import ai.badmonkey.agentspaces.capabilities.aggregate.PushSumAggregate;
 import ai.badmonkey.agentspaces.langchain4j.embed.LangChain4jEmbedder;
 import ai.badmonkey.agentspaces.langchain4j.memory.ConversationIdResolver;
 import ai.badmonkey.agentspaces.langchain4j.memory.FleetChatMemoryProvider;
@@ -248,9 +247,7 @@ public class LangChain4jFactory {
     @Requires(property = "agentspaces.micronaut.langchain4j.usage.enabled", value = "true")
     public FleetUsage fleetUsage(FleetContext fleet, LangChain4jSettings settings) {
         LangChain4jSettings.Usage usage = settings.getUsage();
-        PushSumAggregate aggregate = fleet.group().provider(PushSumAggregate.TYPE)
-                .filter(PushSumAggregate.class::isInstance).map(PushSumAggregate.class::cast).orElse(null);
-        return new FleetUsage(aggregate,
+        return new FleetUsage(
                 usage.getMetricsSpace().isBlank() ? null
                         : fleet.requiredSpace(usage.getMetricsSpace(), "agentspaces.micronaut.langchain4j.usage.metrics-space"),
                 usage.getEntryLease(), usage.getPublishInterval(), Clock.systemUTC());

@@ -36,7 +36,7 @@ public final class Contexts {
     }
 
     public static int freePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
+        try (ServerSocket socket = new ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress())) {
             return socket.getLocalPort();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
