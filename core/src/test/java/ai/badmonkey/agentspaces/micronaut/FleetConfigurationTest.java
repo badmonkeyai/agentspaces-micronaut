@@ -110,6 +110,38 @@ class FleetConfigurationTest {
         assertThat(p.getGroups().get(0).getFounding()).isEqualTo("g-v1");
     }
 
+    /** The deployer hands a package its switches as AGENTSPACES_* variables; Micronaut spells each in every way, and only the one the runtime knows stays. */
+    @Test
+    void theEnvironmentsSpellingsOfAVariableAreDroppedButTheOneThatBindsStays() {
+        Map<String, Object> tree = new java.util.LinkedHashMap<>();
+        tree.put("flows", new java.util.LinkedHashMap<>(Map.of("reconcile", "true")));
+        tree.put("flows-reconcile", "true");
+        tree.put("rules", new java.util.LinkedHashMap<>(Map.of("gate", "true")));
+        tree.put("rules-gate", "true");
+        tree.put("security", new java.util.LinkedHashMap<>(Map.of("profile", "dev-local")));
+        tree.put("security-profile", "dev-local");
+        tree.put("tick", new java.util.LinkedHashMap<>(Map.of("millis", "150")));
+        tree.put("tick-millis", "150");
+        tree.put("bind", "127.0.0.1:7701");
+        tree.put("seeds", "127.0.0.1:7700");      // a group's setting the deployer hands over; the yaml reads it as ${AGENTSPACES_SEEDS:}
+        tree.put("founding", "fleet-v1");
+        Map<String, String> env = Map.of("AGENTSPACES_FLOWS_RECONCILE", "true", "AGENTSPACES_RULES_GATE", "true",
+                "AGENTSPACES_SECURITY_PROFILE", "dev-local", "AGENTSPACES_TICK_MILLIS", "150", "AGENTSPACES_BIND", "127.0.0.1:7701",
+                "AGENTSPACES_SEEDS", "127.0.0.1:7700", "AGENTSPACES_FOUNDING", "fleet-v1");
+        Map<String, Object> cleaned = FleetConfiguration.withoutEnvironmentVariants(tree, env);
+        assertThat(cleaned).doesNotContainKeys("flows-reconcile", "rules-gate", "security-profile", "tick", "seeds", "founding")
+                .containsKeys("flows", "rules", "security", "tick-millis", "bind");
+        AgentSpacesProperties p = FleetConfiguration.bind(cleaned);
+        assertThat(p.getFlows().isReconcile()).isTrue();
+        assertThat(p.getRules().isGate()).isTrue();
+        assertThat(p.getSecurity().getProfile()).isEqualTo("dev-local");
+        assertThat(p.getTickMillis()).isEqualTo(150);
+        // a typo the environment did not produce still surfaces
+        assertThatThrownBy(() -> FleetConfiguration.bind(FleetConfiguration.withoutEnvironmentVariants(Map.of("tick-milis", "5"), env)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(FleetConfiguration.spellings(new String[]{"a", "b", "c"})).hasSize(4).contains(List.of("a", "b", "c"), List.of("a-b-c"), List.of("a-b", "c"), List.of("a", "b-c"));
+    }
+
     @Test
     void anEmptySubtreeIsTheDefaults() {
         AgentSpacesProperties p = FleetConfiguration.bind(Map.of());
