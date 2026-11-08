@@ -107,6 +107,11 @@
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-content</artifactId>
     </dependency>
+    <!-- Persistent data trees (srad/agentspaces-pdt.md PD-C-03): the Pdt facade per group. -->
+    <dependency>
+      <groupId>ai.badmonkey.agentspaces</groupId>
+      <artifactId>agentspaces-pdt</artifactId>
+    </dependency>
     <dependency>
       <groupId>ai.badmonkey.agentspaces</groupId>
       <artifactId>agentspaces-a2a</artifactId>

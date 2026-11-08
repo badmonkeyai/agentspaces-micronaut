@@ -23,6 +23,7 @@ import ai.badmonkey.agentspaces.api.spi.Embedder;
 import ai.badmonkey.agentspaces.api.spi.SchemaRegistry;
 import ai.badmonkey.agentspaces.api.spi.Transport;
 import ai.badmonkey.agentspaces.identity.PeerIdentity;
+import ai.badmonkey.agentspaces.micronaut.pdt.PdtStores;
 import ai.badmonkey.agentspaces.peering.node.PeerNode;
 import ai.badmonkey.agentspaces.runtime.FleetScheduler;
 import ai.badmonkey.agentspaces.spring.AgentSpacesAutoConfiguration;
@@ -126,16 +127,24 @@ public class AgentSpacesFactory {
                                    AgentIdentityFactory identities,
                                    @Nullable SchemaRegistry schemas,
                                    List<BeaconLocator> locators,
-                                   @Nullable BootstrapChainFactory chains) {
+                                   @Nullable BootstrapChainFactory chains,
+                                   @Nullable PdtStores pdtStores) {
         // Issue #16: a SchemaRegistry singleton names the spaces the wiring builds
         // and every card the binder publishes, so an application may name its
         // entry types by an ontology namespace; absent, the default rule.
         // SRAD DB-C-01, DB-C-02, DB-C-09: every BeaconLocator bean (in @Order
         // order) joins the group's chain when it applies to the group; a
         // BootstrapChainFactory bean composes the chain, else the default.
+        // srad/agentspaces-pdt.md PD-C-03: with agentspaces.pdt.enabled=true the
+        // PdtStores bean exists, and the holder it is handed makes the shared wiring
+        // build every group's content swarm with a tree store over that group's node
+        // store; the Micronaut Pdts attaches its facade to that swarm afterwards.
+        ai.badmonkey.agentspaces.spring.Pdts pdts = pdtStores == null
+                ? new ai.badmonkey.agentspaces.spring.Pdts()
+                : new ai.badmonkey.agentspaces.spring.Pdts(pdtStores::storeFor, List.of());
         return wiring.agentSpacesWithRegistry(properties, node, identity, authorizers, embedder,
                 clock, identities, schemas, locators,
-                chains == null ? BootstrapChainFactory.defaults() : chains);
+                chains == null ? BootstrapChainFactory.defaults() : chains, pdts);
     }
 
     @Singleton

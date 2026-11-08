@@ -481,6 +481,18 @@ included (`enabled`, `piece-size`, `escalate-above`, `store.backends`, `store.pa
 `escalate-above` travels as an artifact, and the console gains the `content` panel. The LangChain4j
 module's `capability-tools.content` adds the content tools to the model.
 
+Persistent data trees (srad/agentspaces-pdt.md §7.2) bind from `agentspaces.pdt.*` with the keys
+and defaults the Spring starter reads: `enabled`, `inline-delta` (`32KB`), `load-timeout` (`10s`),
+`follow` (`full` or `lazy`), `sealing`, `head-lease`, `cancel-grace`, `collect-every`,
+`store.kind` (`pack`, `memory`, or `bean`), `store.path`, `store.require`, `retain.versions`,
+`retain.age`, `take.lease`, `take.timeout`, `take.retries`, and `refs.<name>.mode` (`multi` or
+`linear`). This project adds `agentspaces.pdt.space` (`refs`): the registered space of each group
+that holds the ref heads, so the space's own admission decides who writes one. With it on, a `Pdt`
+per group lives in the `Pdts` bean and the fleet group's is the `Pdt` bean; a `NodeStore` bean
+named for a group, or one unnamed bean for the fleet group, replaces the configured store. The
+facade attaches to the group's content swarm and needs that swarm built over its node store
+(`Content.Builder.treeStore`); until the shared wiring builds it that way, startup names the gap.
+
 ## How it is built
 
 The library reuses the Spring starter's wiring without Spring. The published

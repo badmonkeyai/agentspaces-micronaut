@@ -177,11 +177,13 @@ public class FleetConfiguration {
      * The blocks of the {@code agentspaces} tree that other root projects bind
      * (SRAD discovery-bootstrap-customization §6.5): {@code bootstrap},
      * {@code beacon}, and {@code social} fleet-wide, {@code bootstrap} and
-     * {@code social} per group. The Spring starter ignores them because Boot
-     * ignores unknown keys; the runtime's binding rejects unknown keys, so
+     * {@code social} per group, and {@code pdt}, which this project binds
+     * itself in {@link ai.badmonkey.agentspaces.micronaut.pdt.PdtSettings}
+     * (srad/agentspaces-pdt.md PD-C-03). The Spring starter ignores them because
+     * Boot ignores unknown keys; the runtime's binding rejects unknown keys, so
      * they are dropped here before the conversion.
      */
-    static final Set<String> FOREIGN_BLOCKS = Set.of("bootstrap", "beacon", "social");
+    static final Set<String> FOREIGN_BLOCKS = Set.of("bootstrap", "beacon", "social", "pdt");
 
     static final Set<String> FOREIGN_GROUP_BLOCKS = Set.of("bootstrap", "social");
 
