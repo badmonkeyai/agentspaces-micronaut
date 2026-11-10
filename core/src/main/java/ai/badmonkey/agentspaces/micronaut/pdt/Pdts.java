@@ -72,17 +72,36 @@ public final class Pdts implements AutoCloseable {
      */
     public Pdts(AgentSpaces spaces, PdtStores stores, PdtSettings settings, List<RefSettings> refs,
                 InstantSource clock) {
+        this(spaces, stores, settings, refs, clock, null, null);
+    }
+
+    /**
+     * As {@link #Pdts(AgentSpaces, PdtStores, PdtSettings, List, InstantSource)} with the challenge deadline of
+     * {@code agentspaces.store.challenge-deadline} (PDT 2 phase 3, P2-S-07); each facade also finds the content
+     * stores' cards through its group's discovery (P2-S-11).
+     *
+     * @param challengeDeadline the deadline, or null for the facade's default
+     * @param holder            the shared wiring's holder, which adopts each facade so the spaces under
+     *                          {@code agentspaces.pdt.spaces} and the {@code @PdtRef} sites reach it (PDT 2 phase 7,
+     *                          P2-X-03, P2-X-04), or null when the fabric was wired without one
+     */
+    public Pdts(AgentSpaces spaces, PdtStores stores, PdtSettings settings, List<RefSettings> refs,
+                InstantSource clock, java.time.Duration challengeDeadline, ai.badmonkey.agentspaces.spring.Pdts holder) {
         this.spaces = Objects.requireNonNull(spaces, "spaces");
         Objects.requireNonNull(stores, "stores");
         Objects.requireNonNull(settings, "settings");
         for (String groupName : spaces.groupNames()) {
             AgentSpaces.GroupContext group = spaces.group(groupName);
-            members.put(groupName, build(group, stores.storeFor(groupName), settings, refs, clock));
+            Member member = build(group, stores.storeFor(groupName), settings, refs, clock, challengeDeadline);
+            members.put(groupName, member);
+            if (holder != null) {
+                holder.adopt(groupName, member.pdt());
+            }
         }
     }
 
     static Member build(AgentSpaces.GroupContext group, NodeStore store, PdtSettings settings,
-                        List<RefSettings> refs, InstantSource clock) {
+                        List<RefSettings> refs, InstantSource clock, java.time.Duration challengeDeadline) {
         String name = group.name();
         Content content = group.provider(Content.TYPE)
                 .filter(Content.class::isInstance).map(Content.class::cast)
@@ -112,16 +131,13 @@ public final class Pdts implements AutoCloseable {
         // starter does, since a sealed facade over an empty ring could write nothing.
         String sealing = settings.getSealing();
         Optional<GroupKeyRing> ring = content.keyRing().filter(r -> !r.epochs().isEmpty());
-        if (PRef.SEALING_SEALED_NODES.equals(sealing) && ring.isPresent()) {
-            // The shared wiring built this group's swarm over the unsealed node store before the
-            // facade existed, and a sealed-nodes facade refuses a swarm whose tree store is not its
-            // SealedNodeStore (srad/agentspaces-pdt.md 10.2); refuse by name rather than start a
-            // facade that could seal nothing. The Spring starter builds the facade first and is the
-            // host for sealed-nodes until the shared wiring takes a sealed store resolver.
-            throw new IllegalStateException("group '" + name + "': agentspaces.pdt.sealing=sealed-nodes is not"
-                    + " supported by the Micronaut factory yet: the content swarm is built over the unsealed node"
-                    + " store before the facade exists; use sealing=group-key here, or the Spring starter for"
-                    + " sealed-nodes (srad/agentspaces-pdt.md 10.3)");
+        if (PRef.SEALING_SEALED_NODES.equals(sealing) && ring.isPresent()
+                && !(store instanceof ai.badmonkey.agentspaces.pdt.seal.SealedNodeStore)) {
+            // PDT 2 phase 7, P2-X-04: PdtStores.treeStore sealed the store the swarm was built over, which the facade
+            // adopts; a swarm over an unsealed store could carry nothing this facade seals
+            throw new IllegalStateException("group '" + name + "': agentspaces.pdt.sealing=sealed-nodes needs the"
+                    + " content swarm built over the sealed store PdtStores.treeStore gives, and it was built over "
+                    + store);
         }
         if (ring.isEmpty() && !PRef.SEALING_NONE.equals(sealing)) {
             LOG.warn("group {}: agentspaces.pdt.sealing={} but the group has no content-key, so its heads name"
@@ -141,12 +157,30 @@ public final class Pdts implements AutoCloseable {
                 .collectEvery(settings.getCollectEvery())
                 .take(settings.getTake().getLease(), settings.getTake().getTimeout(), settings.getTake().getRetries());
         ring.ifPresent(builder::keyRing);
+        // PDT 2 follow-ups, 2026-11-09, F1: the peer signs the pins Pdt.storeFor writes
+        builder.identity(group.identity());
+        if (group.discovery() != null) {
+            builder.discovery(group.discovery());
+        }
+        if (challengeDeadline != null) {
+            builder.challengeDeadline(challengeDeadline);
+        }
         for (RefSettings ref : refs == null ? List.<RefSettings>of() : refs) {
-            if (!PRef.MODE_MULTI.equals(ref.getMode()) && !PRef.MODE_LINEAR.equals(ref.getMode())) {
-                throw new IllegalStateException("agentspaces.pdt.refs." + ref.getName() + ".mode=" + ref.getMode()
-                        + " is not multi or linear");
+            if (ref.getMode() != null) {
+                if (!PRef.MODE_MULTI.equals(ref.getMode()) && !PRef.MODE_LINEAR.equals(ref.getMode())) {
+                    throw new IllegalStateException("agentspaces.pdt.refs." + ref.getName() + ".mode=" + ref.getMode()
+                            + " is not multi or linear");
+                }
+                builder.mode(ref.getName(), ref.getMode());
             }
-            builder.mode(ref.getName(), ref.getMode());
+            if (ref.getFollow() != null) {
+                // PDT 2 phase 7, P2-X-08: the ref's own follow
+                if (!Pdt.FOLLOW_FULL.equals(ref.getFollow()) && !Pdt.FOLLOW_LAZY.equals(ref.getFollow())) {
+                    throw new IllegalStateException("agentspaces.pdt.refs." + ref.getName() + ".follow=" + ref.getFollow()
+                            + " is not full or lazy");
+                }
+                builder.follow(ref.getName(), ref.getFollow());
+            }
         }
         Pdt pdt = builder.build().attach(content);
         LOG.info("group {}: PDT over space '{}', store {}, follow {}, inline delta {} bytes", name,

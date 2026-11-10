@@ -16,7 +16,13 @@
 package ai.badmonkey.agentspaces.micronaut.pdt;
 
 import ai.badmonkey.agentspaces.micronaut.MicronautFleetSettings;
+import ai.badmonkey.agentspaces.agent.pdt.PRef;
+import ai.badmonkey.agentspaces.common.crypto.GroupKeyRing;
 import ai.badmonkey.agentspaces.pdt.NodeStore;
+import ai.badmonkey.agentspaces.pdt.seal.NodeSealer;
+import ai.badmonkey.agentspaces.pdt.seal.SealedNodeStore;
+import ai.badmonkey.agentspaces.pdt.store.QuotaNodeStore;
+import ai.badmonkey.agentspaces.pdt.swarm.NodeStoreTreeStore;
 import ai.badmonkey.agentspaces.pdt.store.PackNodeStore;
 import ai.badmonkey.agentspaces.peering.blocks.MemoryBlockStore;
 import ai.badmonkey.agentspaces.spring.AgentSpacesProperties;
@@ -53,17 +59,23 @@ import java.util.Optional;
  *
  * <p>The stores exist before the group's content swarm is built, because the
  * swarm serves and fetches trees through a tree store over the same
- * {@code NodeStore} ({@code Content.Builder.treeStore(PdtSwarm.treeStore(store))});
- * {@link Pdts} attaches each group's facade to that swarm.
+ * {@code NodeStore}: this bean is the shared wiring's {@code Pdts.Hosted}
+ * (PDT 2 phase 7, P2-X-04), so {@link #treeStore} gives each group's swarm the
+ * bridge over the group's store, sealed under the group's ring when
+ * {@code agentspaces.pdt.sealing=sealed-nodes} and behind
+ * {@code agentspaces.pdt.store.quota} (P2-X-08), and {@link #spaces} gives the
+ * wiring the {@code agentspaces.pdt.spaces.*} blocks. {@link Pdts} attaches each
+ * group's facade to that swarm over the same store.
  */
 @Singleton
 @Requires(property = "agentspaces.enabled", notEquals = "false")
 @Requires(property = "agentspaces.pdt.enabled", value = "true")
-public class PdtStores implements AutoCloseable {
+public class PdtStores implements AutoCloseable, ai.badmonkey.agentspaces.spring.Pdts.Hosted {
 
     private static final Logger LOG = LoggerFactory.getLogger(PdtStores.class);
 
     private final PdtSettings settings;
+    private final List<SpaceSettings> spaces;
     private final String fleetGroup;
     private final BeanContext context;
     private final InstantSource clock;
@@ -72,9 +84,10 @@ public class PdtStores implements AutoCloseable {
     private final List<AutoCloseable> packs = new ArrayList<>();
     private boolean closed;
 
-    public PdtStores(PdtSettings settings, MicronautFleetSettings fleet, AgentSpacesProperties properties,
-                     BeanContext context, InstantSource clock) {
+    public PdtStores(PdtSettings settings, List<SpaceSettings> spaces, MicronautFleetSettings fleet,
+                     AgentSpacesProperties properties, BeanContext context, InstantSource clock) {
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.spaces = List.copyOf(spaces);
         this.context = Objects.requireNonNull(context, "context");
         this.clock = Objects.requireNonNull(clock, "clock");
         String group = fleet.getGroup().isBlank()
@@ -108,6 +121,41 @@ public class PdtStores implements AutoCloseable {
         return store;
     }
 
+    /**
+     * The bridge a group's content swarm is built with (PDT 2 phase 7, P2-X-04, P2-X-08): over the group's store,
+     * which becomes a {@link SealedNodeStore} over the same backend when the sealing is {@code sealed-nodes} and the
+     * group has a content key, so the facade {@link Pdts} builds later adopts it; received nodes pass the quota.
+     *
+     * @param group the group name
+     * @param ring  the group's content-key ring, or null when the group has none
+     * @return the bridge
+     */
+    @Override
+    public synchronized NodeStoreTreeStore treeStore(String group, GroupKeyRing ring) {
+        NodeStore store = storeFor(group);
+        if (PRef.SEALING_SEALED_NODES.equals(settings.getSealing()) && ring != null && !ring.epochs().isEmpty()
+                && !(store instanceof SealedNodeStore)) {
+            store = new SealedNodeStore(store.backend(), clock, new NodeSealer(ring, clock));
+            stores.put(group, store);
+        }
+        long quota = settings.getStore().getQuota();
+        return new NodeStoreTreeStore(store, quota > 0 ? quota : QuotaNodeStore.UNBOUNDED);
+    }
+
+    /** The {@code agentspaces.pdt.spaces.*} blocks, as the shared wiring reads them (PDT 2 phase 7, P2-X-04). */
+    @Override
+    public Map<String, AgentSpacesProperties.PersistentTrees.SpaceEscalation> spaces() {
+        Map<String, AgentSpacesProperties.PersistentTrees.SpaceEscalation> out = new LinkedHashMap<>();
+        for (SpaceSettings space : spaces) {
+            AgentSpacesProperties.PersistentTrees.SpaceEscalation escalation =
+                    new AgentSpacesProperties.PersistentTrees.SpaceEscalation();
+            escalation.setEscalateAbove(space.getEscalateAbove());
+            escalation.setRequire(space.isRequire());
+            out.put(space.getName(), escalation);
+        }
+        return out;
+    }
+
     /** Whether the group's store came from an application bean. */
     public synchronized boolean isBean(String group) {
         return fromBean.getOrDefault(group, false);
@@ -134,10 +182,6 @@ public class PdtStores implements AutoCloseable {
             return bean.get();
         }
         fromBean.put(group, false);
-        if (config.getQuota() > 0) {
-            LOG.warn("group {}: agentspaces.pdt.store.quota={} is bound but the facade at this version applies no quota"
-                    + " (PD-S-05 pending); the collector alone frees space", group, config.getQuota());
-        }
         switch (kind) {
             case PdtSettings.Store.BEAN -> throw new IllegalStateException("agentspaces.pdt.store.kind=bean needs a"
                     + " NodeStore bean named '" + group + "'" + (group.equals(fleetGroup) ? " or one unnamed bean" : "")

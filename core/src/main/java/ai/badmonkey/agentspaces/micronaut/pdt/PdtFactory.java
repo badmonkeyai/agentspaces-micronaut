@@ -34,10 +34,12 @@ import java.util.List;
  * application-supplied one of the same type; a {@code NodeStore} bean replaces
  * the configured store ({@link PdtStores}).
  *
- * <p>This wiring builds against {@code agentspaces-pdt} directly: the shared
- * Spring wiring this project otherwise reuses carries no PDT build method at
- * this version, and the swarm it builds carries no tree store, which
- * {@link Pdts} reports at startup until that seam lands.
+ * <p>This wiring builds the facades against {@code agentspaces-pdt} directly,
+ * after the shared Spring wiring has built the groups: {@link PdtStores} hands
+ * that wiring each group's tree store and the {@code agentspaces.pdt.spaces.*}
+ * blocks, and {@link Pdts} adopts every facade into the wiring's holder, so the
+ * spaces built over its deferred seam and the {@code @PdtRef} sites reach the
+ * facade (PDT 2 phase 7, P2-X-03, P2-X-04).
  */
 @Factory
 @Requires(property = "agentspaces.enabled", notEquals = "false")
@@ -52,14 +54,17 @@ public class PdtFactory {
      * @param settings the keys
      * @param refs     the per-ref modes, or an empty list
      * @param clock    the clock
+     * @param properties the shared keys, whose {@code agentspaces.store.challenge-deadline} the facades take
+     * @param holder   the shared wiring's holder, which adopts every facade (PDT 2 phase 7, P2-X-03, P2-X-04)
      * @return the registry
      */
     @Singleton
     @Bean(preDestroy = "close")
     @Requires(missingBeans = Pdts.class)
     public Pdts pdts(AgentSpaces spaces, PdtStores stores, PdtSettings settings, List<RefSettings> refs,
-                     InstantSource clock) {
-        return new Pdts(spaces, stores, settings, refs, clock);
+                     InstantSource clock, ai.badmonkey.agentspaces.spring.AgentSpacesProperties properties,
+                     ai.badmonkey.agentspaces.spring.Pdts holder) {
+        return new Pdts(spaces, stores, settings, refs, clock, properties.getStore().getChallengeDeadline(), holder);
     }
 
     /** The fleet group's facade ({@code agentspaces.micronaut.group}, else the first group). */

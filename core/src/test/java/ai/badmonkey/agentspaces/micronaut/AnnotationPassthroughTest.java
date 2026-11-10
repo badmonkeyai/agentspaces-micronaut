@@ -54,7 +54,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Every binding annotation and return convention the README lists as bound,
+ * Every binding annotation and return convention docs/agents.md lists as bound,
  * proven through Micronaut-managed beans with each outcome read back from a
  * space: {@code @SpaceNotify} with an {@code Entries} fork of a {@code Tagged}
  * entry and a {@code @SpaceRef} write; {@code @BidFunction} on an AUCTION

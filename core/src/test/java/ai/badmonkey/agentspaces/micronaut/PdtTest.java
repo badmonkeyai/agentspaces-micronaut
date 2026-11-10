@@ -23,6 +23,7 @@ import ai.badmonkey.agentspaces.micronaut.support.Contexts;
 import ai.badmonkey.agentspaces.pdt.NodeStore;
 import ai.badmonkey.agentspaces.pdt.Pdt;
 import ai.badmonkey.agentspaces.pdt.refs.Ref;
+import ai.badmonkey.agentspaces.pdt.swarm.NodeStoreTreeStore;
 import ai.badmonkey.agentspaces.pdt.values.Codec;
 import ai.badmonkey.agentspaces.pdt.values.PMap;
 import ai.badmonkey.agentspaces.peering.blocks.MemoryBlockStore;
@@ -127,12 +128,12 @@ class PdtTest {
 
     /**
      * PD-P-05, PD-C-03: with a content key the factory hands the swarm's ring to the facade
-     * (group-key sealing names the ring's epoch on every head), and sealed-nodes, which needs the
-     * swarm built over the facade's sealed store, is refused by name rather than started keyless.
+     * (group-key sealing names the ring's epoch on every head); sealed-nodes builds the swarm
+     * over the facade's sealed store (PDT 2 phase 7, P2-X-04, below).
      */
     @Test
     @Timeout(120)
-    void aContentKeyReachesTheFacadeAndSealedNodesIsRefusedByName() {
+    void aContentKeyReachesTheFacade() {
         String contentKey = java.util.Base64.getEncoder().encodeToString(
                 ai.badmonkey.agentspaces.common.crypto.GroupKey.generate().rawBytes());
         Map<String, Object> groupKey = pdt(Map.of("agentspaces.pdt.sealing", "group-key",
@@ -145,14 +146,135 @@ class PdtTest {
             ledgerA.swap(m -> m.assoc("invoice-1", "paid"));
             assertThat(ledgerA.deref().get("invoice-1")).contains("paid");
         }
-        Map<String, Object> sealed = pdt(Map.of("agentspaces.pdt.sealing", "sealed-nodes",
-                "agentspaces.groups[0].content-key", contentKey));
-        assertThatThrownBy(() -> start(Contexts.fleet(Contexts.freePort(), 0), sealed, null).close())
-                .satisfies(e -> assertThat(causes(e)).contains("sealed-nodes is not supported by the Micronaut factory"));
         // without a content key the configured sealing drops to none, as the Spring starter does
         Map<String, Object> keyless = pdt(Map.of("agentspaces.pdt.sealing", "sealed-nodes"));
         try (ApplicationContext a = start(Contexts.fleet(Contexts.freePort(), 0), keyless, null)) {
             assertThat(a.getBean(Pdt.class).sealing()).isEqualTo(ai.badmonkey.agentspaces.agent.pdt.PRef.SEALING_NONE);
+        }
+    }
+
+    /**
+     * PDT 2 phase 7, P2-X-04: the shared wiring builds the swarm over the group's node store sealed under the ring
+     * (the host's tree store), so the factory's sealed-nodes facade adopts that store, every node is an envelope,
+     * and a second context opens it with the same key.
+     */
+    @Test
+    @Timeout(120)
+    void sealedNodesBuildsTheSwarmOverTheFacadesSealedStore() {
+        String contentKey = java.util.Base64.getEncoder().encodeToString(
+                ai.badmonkey.agentspaces.common.crypto.GroupKey.generate().rawBytes());
+        Map<String, Object> sealed = pdt(Map.of("agentspaces.pdt.sealing", "sealed-nodes",
+                "agentspaces.groups[0].content-key", contentKey));
+        int seedPort = Contexts.freePort();
+        try (ApplicationContext a = start(Contexts.fleet(seedPort, 0), sealed, null);
+             ApplicationContext b = start(Contexts.fleet(Contexts.freePort(), seedPort), sealed, null)) {
+            Pdt onA = a.getBean(Pdt.class);
+            Pdt onB = b.getBean(Pdt.class);
+            assertThat(onA.sealing()).isEqualTo(ai.badmonkey.agentspaces.agent.pdt.PRef.SEALING_SEALED_NODES);
+            assertThat(onA.store()).isInstanceOf(ai.badmonkey.agentspaces.pdt.seal.SealedNodeStore.class);
+            assertThat(content(a).treeStore()).get().isInstanceOfSatisfying(NodeStoreTreeStore.class,
+                    bridge -> assertThat(bridge.store()).as("the swarm serves the facade's sealed store").isSameAs(onA.store()));
+
+            PMap<String, String> v1 = onA.mapRef("ledger", STR, STR).swap(m -> m.assoc("invoice-1", "paid"));
+            assertThat(ai.badmonkey.agentspaces.pdt.seal.NodeSealer.isSealed(onA.store().stored(v1.root()).orElseThrow()))
+                    .as("the root is an sn envelope").isTrue();
+            Ref<PMap<String, String>> ledgerB = onB.mapRef("ledger", STR, STR);
+            assertThat(Contexts.await(Duration.ofSeconds(60), () -> sameRoot(ledgerB, v1.root())))
+                    .as("b opened a's sealed tree: " + onB.stats()).isTrue();
+            assertThat(ledgerB.deref().get("invoice-1")).contains("paid");
+            assertThat(ai.badmonkey.agentspaces.pdt.seal.NodeSealer.isSealed(onB.store().stored(v1.root()).orElseThrow()))
+                    .as("b holds the envelope").isTrue();
+        }
+    }
+
+    /** A large entry, so the space escalates it. */
+    public record Doc(String id, Map<String, String> fields) {
+    }
+
+    private static Map<String, String> fields(int count) {
+        java.util.Random random = new java.util.Random(1);
+        Map<String, String> fields = new java.util.TreeMap<>();
+        for (int i = 0; i < count; i++) {
+            char[] chars = new char[80];
+            for (int c = 0; c < chars.length; c++) {
+                chars[c] = (char) ('a' + random.nextInt(26));
+            }
+            fields.put("field-" + i, new String(chars));
+        }
+        return fields;
+    }
+
+    private static ai.badmonkey.agentspaces.content.Content content(ApplicationContext ctx) {
+        return (ai.badmonkey.agentspaces.content.Content) ctx.getBean(ai.badmonkey.agentspaces.agent.AgentSpaces.class)
+                .group("it-fleet").provider(ai.badmonkey.agentspaces.content.Content.TYPE).orElseThrow();
+    }
+
+    private static ai.badmonkey.agentspaces.api.space.Space space(ApplicationContext ctx, String name) {
+        return ctx.getBean(ai.badmonkey.agentspaces.agent.AgentSpaces.class).group("it-fleet").space(name);
+    }
+
+    /**
+     * PDT 2 phase 7, P2-X-04: {@code agentspaces.pdt.spaces.*} binds here, the shared wiring builds the space over the
+     * holder's deferred seam before the factory's facade exists, and once the facade is adopted a large entry
+     * escalates through the trees and a second context reads it.
+     */
+    @Test
+    @Timeout(120)
+    void aSpaceUnderPdtSpacesEscalatesThroughTheTreesOfTheAdoptedFacade() {
+        Map<String, Object> escalate = pdt(Map.of("agentspaces.pdt.spaces.tasks.escalate-above", "65536"));
+        int seedPort = Contexts.freePort();
+        try (ApplicationContext a = start(Contexts.fleet(seedPort, 0), escalate, null);
+             ApplicationContext b = start(Contexts.fleet(Contexts.freePort(), seedPort), escalate, null)) {
+            Pdt onA = a.getBean(Pdt.class);
+            Pdt onB = b.getBean(Pdt.class);
+            ai.badmonkey.agentspaces.common.id.PeerId idA = a.getBean(ai.badmonkey.agentspaces.identity.PeerIdentity.class).peerId();
+            ai.badmonkey.agentspaces.common.id.PeerId idB = b.getBean(ai.badmonkey.agentspaces.identity.PeerIdentity.class).peerId();
+            // the writer escalates through the trees once every member advertises them (PD-E-06)
+            assertThat(Contexts.await(Duration.ofSeconds(60), () -> content(a).advertisesTrees(idB)
+                    && content(b).advertisesTrees(idA))).isTrue();
+
+            Doc doc = new Doc("doc-1", fields(3_400));
+            space(a, "tasks").write(doc, ai.badmonkey.agentspaces.api.space.Lease.of(Duration.ofHours(1)));
+
+            assertThat(onA.payloads().stats().published()).as("the 300 KiB entry went to the trees").isEqualTo(1);
+            assertThat(Contexts.await(Duration.ofSeconds(60), () -> space(b, "tasks")
+                    .read(ai.badmonkey.agentspaces.api.space.Template.of(Doc.class)).isPresent()
+                    && onB.payloads().stats().fetched() == 1)).as("b: " + onB.payloads()).isTrue();
+            assertThat(space(b, "tasks").read(ai.badmonkey.agentspaces.api.space.Template.of(Doc.class))).contains(doc);
+        }
+    }
+
+    /** PDT 2 phase 7, P2-X-03: the enroller binds a bean whose field and verb parameter take the facade's refs. */
+    @Test
+    @Timeout(120)
+    void anEnrolledBeanGetsTheFacadesRefsInAFieldAndAVerbParameter() {
+        try (ApplicationContext ctx = start(Contexts.fleet(Contexts.freePort(), 0), pdt(Map.of("test.app", "noter")), null)) {
+            ai.badmonkey.agentspaces.micronaut.support.Noter noter = ctx.getBean(ai.badmonkey.agentspaces.micronaut.support.Noter.class);
+            Pdt pdt = ctx.getBean(Pdt.class);
+            assertThat(noter.facts).as("enrolled at startup").isNotNull();
+
+            noter.facts.swap(m -> m.assoc("claim-1", "the sky is blue"));
+            space(ctx, "tasks").write(new ai.badmonkey.agentspaces.micronaut.support.ItTask("topic-1", 1),
+                    ai.badmonkey.agentspaces.api.space.Lease.of(Duration.ofMinutes(5)));
+
+            assertThat(pdt.mapRef("facts", STR, STR).deref().get("claim-1")).contains("the sky is blue");
+            Ref<PMap<String, String>> notes = pdt.mapRef("notes", STR, STR);
+            assertThat(Contexts.await(Duration.ofSeconds(30), () -> notes.deref().get("topic-1").isPresent())).isTrue();
+        }
+    }
+
+    /** PDT 2 phase 7, P2-X-08: a ref's own follow and the store quota, behind the bridge the swarm is built with. */
+    @Test
+    @Timeout(120)
+    void aRefsFollowAndTheStoreQuotaApplyToTheFacadeAndTheSwarm() {
+        Map<String, Object> props = pdt(Map.of("agentspaces.pdt.refs.archive.follow", "lazy",
+                "agentspaces.pdt.store.quota", "1MB"));
+        try (ApplicationContext ctx = start(Contexts.fleet(Contexts.freePort(), 0), props, null)) {
+            Pdt pdt = ctx.getBean(Pdt.class);
+            assertThat(pdt.refs().config().followsFully("archive")).isFalse();
+            assertThat(pdt.refs().config().followsFully("ledger")).isTrue();
+            assertThat(content(ctx).treeStore()).get().isInstanceOfSatisfying(NodeStoreTreeStore.class,
+                    bridge -> assertThat(bridge.quota()).isEqualTo(1024 * 1024));
         }
     }
 

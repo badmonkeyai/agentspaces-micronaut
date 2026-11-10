@@ -142,6 +142,11 @@ public class FleetEnroller {
                     + " Keep the agent bean free of interceptor annotations and put them on a"
                     + " separate bean (a controller that delegates to the agent, for instance).");
         }
+        if (AgentBinder.takesRefs(user)) {
+            // PDT 2 phase 7, P2-X-03: the compile-time processor may enroll before the PDT facades exist; building
+            // them here adopts each into the wiring's holder, which the bean's @PdtRef sites resolve through
+            beans.findBean(ai.badmonkey.agentspaces.micronaut.pdt.Pdts.class);
+        }
         try {
             spaces.bind(bean);
         } catch (IllegalArgumentException | IllegalStateException e) {

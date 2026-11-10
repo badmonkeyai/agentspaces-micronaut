@@ -119,6 +119,24 @@ public class AgentSpacesFactory {
         return wiring.agentSpacesAgentIdentities(properties, identity, clock);
     }
 
+    /**
+     * The shared wiring's holder of the persistent-tree facades (srad/agentspaces-pdt.md PD-C-03; PDT 2 phase 7,
+     * P2-X-04): with {@code agentspaces.pdt.enabled=true} the {@link PdtStores} bean is its host, so the wiring builds
+     * every group's content swarm over that group's node store, sealed for {@code sealed-nodes}, and the spaces under
+     * {@code agentspaces.pdt.spaces} over the holder's deferred seam; the factory's {@code Pdts} adopts each facade
+     * into it, which also serves {@code @PdtRef} sites.
+     *
+     * @param pdtStores the PDT stores, present when the trees are on
+     * @return the holder
+     */
+    @Singleton
+    @Requires(missingBeans = ai.badmonkey.agentspaces.spring.Pdts.class)
+    public ai.badmonkey.agentspaces.spring.Pdts agentSpacesPdtHolder(@Nullable PdtStores pdtStores) {
+        return pdtStores == null
+                ? new ai.badmonkey.agentspaces.spring.Pdts()
+                : new ai.badmonkey.agentspaces.spring.Pdts(pdtStores, List.of());
+    }
+
     @Singleton
     @Requires(missingBeans = AgentSpaces.class)
     public AgentSpaces agentSpaces(AgentSpacesProperties properties, PeerNode node,
@@ -128,20 +146,17 @@ public class AgentSpacesFactory {
                                    @Nullable SchemaRegistry schemas,
                                    List<BeaconLocator> locators,
                                    @Nullable BootstrapChainFactory chains,
-                                   @Nullable PdtStores pdtStores) {
+                                   ai.badmonkey.agentspaces.spring.Pdts pdts) {
         // Issue #16: a SchemaRegistry singleton names the spaces the wiring builds
         // and every card the binder publishes, so an application may name its
         // entry types by an ontology namespace; absent, the default rule.
         // SRAD DB-C-01, DB-C-02, DB-C-09: every BeaconLocator bean (in @Order
         // order) joins the group's chain when it applies to the group; a
         // BootstrapChainFactory bean composes the chain, else the default.
-        // srad/agentspaces-pdt.md PD-C-03: with agentspaces.pdt.enabled=true the
-        // PdtStores bean exists, and the holder it is handed makes the shared wiring
-        // build every group's content swarm with a tree store over that group's node
-        // store; the Micronaut Pdts attaches its facade to that swarm afterwards.
-        ai.badmonkey.agentspaces.spring.Pdts pdts = pdtStores == null
-                ? new ai.badmonkey.agentspaces.spring.Pdts()
-                : new ai.badmonkey.agentspaces.spring.Pdts(pdtStores::storeFor, List.of());
+        // srad/agentspaces-pdt.md PD-C-03: with agentspaces.pdt.enabled=true the holder's
+        // host is the PdtStores bean, so the shared wiring builds every group's content
+        // swarm with a tree store over that group's node store; the Micronaut Pdts
+        // attaches its facade to that swarm afterwards and adopts it into the holder.
         return wiring.agentSpacesWithRegistry(properties, node, identity, authorizers, embedder,
                 clock, identities, schemas, locators,
                 chains == null ? BootstrapChainFactory.defaults() : chains, pdts);
