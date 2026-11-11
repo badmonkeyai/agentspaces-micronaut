@@ -27,7 +27,7 @@ included (`enabled`, `piece-size`, `escalate-above`, `store.backends`, `store.pa
 `escalate-above` travels as an artifact, and the console gains the `content` panel. The LangChain4j
 module's `capability-tools.content` adds the content tools to the model.
 
-Persistent data trees (srad/agentspaces-pdt.md §7.2) bind from `agentspaces.pdt.*` with the keys
+Persistent data trees (SPEC annex H) bind from `agentspaces.pdt.*` with the keys
 and defaults the Spring starter reads: `enabled`, `inline-delta` (`32KB`), `load-timeout` (`10s`),
 `follow` (`full` or `lazy`), `sealing`, `head-lease`, `cancel-grace`, `collect-every`,
 `store.kind` (`pack`, `memory`, or `bean`), `store.path`, `store.quota`, `store.require`,
@@ -46,4 +46,4 @@ to every node the swarm receives (a fetch past the quota fails with the refusal)
 under `spaces.*` escalate through a deferred seam in the shared holder, which reaches the facade
 once the factory adopts it; before then a write falls back to the flat swarm and a read retries.
 A bean's `@PdtRef("name")` field or verb parameter gets the group facade's ref for its declared
-type, such as `Ref<PMap<String, Fact>>` (PDT 2 phase 7, P2-X-03, P2-X-04, P2-X-08).
+type, such as `Ref<PMap<String, Fact>>`.
