@@ -143,6 +143,50 @@ class FleetConfigurationTest {
     }
 
     @Test
+    void theReplicationBlocksBindAndTheirEnvironmentSpellingsResolveToTheOneKey() {
+        // srad/replication-by-entry.md appendix D (RE-L-04): the two strict map-valued blocks bind from YAML,
+        // and the spellings Micronaut makes of AGENTSPACES_GOSSIP_AUDIT_BUDGET leave only gossip.audit-budget,
+        // so the starter's strict check passes on a deployer's environment.
+        AgentSpacesProperties yaml = FleetConfiguration.bind(Map.of(
+                "gossip", Map.of("audit", false, "audit-sessions", 2, "audit-budget", 65536, "probe-hash-streams", 16),
+                "space", Map.of("horizon", "legacy", "renew-shortening-log", false)));
+        yaml.refuseUnknownKeys();
+        assertThat(yaml.audit()).isFalse();
+        assertThat(yaml.auditSessions()).isEqualTo(2);
+        assertThat(yaml.auditBudget()).isEqualTo(65536L);
+        assertThat(yaml.probeHashStreams()).isEqualTo(16);
+        assertThat(yaml.horizonPerEntry()).isFalse();
+        assertThat(yaml.renewShorteningLog()).isFalse();
+
+        Map<String, Object> tree = new java.util.LinkedHashMap<>();
+        Map<String, Object> gossip = new java.util.LinkedHashMap<>();
+        gossip.put("audit", new java.util.LinkedHashMap<>(Map.of("budget", "65536")));
+        gossip.put("audit-budget", "65536");
+        tree.put("gossip", gossip);
+        tree.put("gossip-audit", new java.util.LinkedHashMap<>(Map.of("budget", "65536")));
+        tree.put("gossip-audit-budget", "65536");
+        Map<String, Object> space = new java.util.LinkedHashMap<>();
+        space.put("renew", new java.util.LinkedHashMap<>(Map.of("shortening-log", "false",
+                "shortening", new java.util.LinkedHashMap<>(Map.of("log", "false")))));
+        space.put("renew-shortening", new java.util.LinkedHashMap<>(Map.of("log", "false")));
+        space.put("renew-shortening-log", "false");
+        tree.put("space", space);
+        tree.put("space-renew-shortening-log", "false");
+        Map<String, Object> cleaned = FleetConfiguration.withoutEnvironmentVariants(tree, Map.of(
+                "AGENTSPACES_GOSSIP_AUDIT_BUDGET", "65536", "AGENTSPACES_SPACE_RENEW_SHORTENING_LOG", "false"));
+        assertThat(cleaned).containsOnlyKeys("gossip", "space");
+        assertThat(new java.util.ArrayList<Object>(((Map<?, ?>) cleaned.get("gossip")).keySet())).containsExactly("audit-budget");
+        assertThat(new java.util.ArrayList<Object>(((Map<?, ?>) cleaned.get("space")).keySet()))
+                .containsExactly("renew-shortening-log");
+        AgentSpacesProperties env = FleetConfiguration.bind(cleaned);
+        env.refuseUnknownKeys();
+        assertThat(env.auditBudget()).isEqualTo(65536L);
+        assertThat(env.renewShorteningLog()).isFalse();
+        assertThat(env.audit()).as("audit stays on by default").isTrue();
+        assertThat(env.horizonPerEntry()).as("the per-entry horizon stays on by default").isTrue();
+    }
+
+    @Test
     void anEmptySubtreeIsTheDefaults() {
         AgentSpacesProperties p = FleetConfiguration.bind(Map.of());
         assertThat(p.getGroups()).isEmpty();

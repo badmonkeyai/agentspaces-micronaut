@@ -27,6 +27,28 @@ included (`enabled`, `piece-size`, `escalate-above`, `store.backends`, `store.pa
 `escalate-above` travels as an artifact, and the console gains the `content` panel. The LangChain4j
 module's `capability-tools.content` adds the content tools to the model.
 
+The replication settings bind the same way, from the starter's two strict blocks
+(srad/replication-by-entry.md appendix D). Most applications leave them out:
+
+| Property | Default | Meaning |
+| --- | --- | --- |
+| `agentspaces.gossip.audit` | `true` | Advertise `wire.ae=2`. Toward a member that advertises it too, compare a space by its fingerprinted trie and fetch only the entries that differ (SPEC annex I.6). |
+| `agentspaces.gossip.audit-sessions` | `4` | Audit sessions per asker, 1 to 4. |
+| `agentspaces.gossip.audit-budget` | `1048576` | The bytes each audit answer may hold, 4096 to 4194304. |
+| `agentspaces.gossip.probe-hash-streams` | `32` | How many streams a probe hashes one by one, 0 to 256. |
+| `agentspaces.space.horizon` | `per-entry` | Advertise `wire.horizon=1`: once every member of a space's view does, a withdrawn entry is forgotten by its own lease (SPEC §7.3). `legacy` keeps 2 x maxLease; set it on a peer that renews for an identity another peer renews at the same time. |
+| `agentspaces.space.renew-shortening-log` | `true` | Log, once per space, the first renewal that asks for less than its lease has left. |
+
+An unknown key under either block stops the application at start and names the keys the block
+takes, so a misspelt setting never passes silently. The environment form works too:
+`AGENTSPACES_GOSSIP_AUDIT_BUDGET` binds `agentspaces.gossip.audit-budget`, and the other spellings
+Micronaut makes of the variable are dropped before the check.
+
+A renewal never shortens a lease (SPEC §7.2). `EntryHandle.renew`, a take's `renew`, and a
+subscription's `renew` extend to at least the given time from now, so a renewal for less than the
+lease has left changes nothing. To end an entry sooner, cancel it, and write it again with the
+shorter lease if it should stay.
+
 Persistent data trees (SPEC annex H) bind from `agentspaces.pdt.*` with the keys
 and defaults the Spring starter reads: `enabled`, `inline-delta` (`32KB`), `load-timeout` (`10s`),
 `follow` (`full` or `lazy`), `sealing`, `head-lease`, `cancel-grace`, `collect-every`,

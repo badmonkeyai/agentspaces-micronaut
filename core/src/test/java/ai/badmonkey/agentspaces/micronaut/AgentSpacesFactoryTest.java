@@ -68,6 +68,43 @@ class AgentSpacesFactoryTest {
         }
     }
 
+    /**
+     * srad/replication-by-entry.md appendix D (RE-L-04): the starter's agentspaces.gossip.* and
+     * agentspaces.space.* reach the node from Micronaut properties alone. By default the node advertises the
+     * audit (wire.ae=2) and the per-entry horizon (wire.horizon=1); turned off, it advertises neither.
+     */
+    @Test
+    void theReplicationKeysReachTheNode() {
+        try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0), Map.of())) {
+            ai.badmonkey.agentspaces.peering.node.PeerNode node =
+                    ctx.getBean(ai.badmonkey.agentspaces.peering.node.PeerNode.class);
+            assertThat(node.wireHints())
+                    .containsEntry(ai.badmonkey.agentspaces.peering.node.PeerNode.AE_HINT, "2")
+                    .containsEntry(ai.badmonkey.agentspaces.peering.node.PeerNode.HORIZON_HINT, "1");
+        }
+        try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0), Map.of(
+                "agentspaces.gossip.audit", "false",
+                "agentspaces.gossip.audit-budget", "65536",
+                "agentspaces.space.horizon", "legacy",
+                "agentspaces.space.renew-shortening-log", "false"))) {
+            ai.badmonkey.agentspaces.peering.node.PeerNode node =
+                    ctx.getBean(ai.badmonkey.agentspaces.peering.node.PeerNode.class);
+            assertThat(node.wireHints()).doesNotContainKeys(ai.badmonkey.agentspaces.peering.node.PeerNode.AE_HINT,
+                    ai.badmonkey.agentspaces.peering.node.PeerNode.HORIZON_HINT);
+            assertThat(node.horizonPerEntry()).isFalse();
+        }
+    }
+
+    @Test
+    void aMisspeltReplicationKeyRefusesAtStartAndNamesTheKey() {
+        assertThatThrownBy(() -> {
+            try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0),
+                    Map.of("agentspaces.gossip.audit-budjet", "65536"))) {
+                ctx.getBean(ai.badmonkey.agentspaces.peering.node.PeerNode.class);
+            }
+        }).rootCause().hasMessageContaining("audit-budjet").hasMessageContaining("audit-budget");
+    }
+
     @Test
     void anApplicationEmbedderReplacesTheDefault() {
         try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0),
