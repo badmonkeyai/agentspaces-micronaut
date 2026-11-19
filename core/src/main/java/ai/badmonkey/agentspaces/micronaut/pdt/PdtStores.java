@@ -205,6 +205,15 @@ public class PdtStores implements AutoCloseable, ai.badmonkey.agentspaces.spring
                     return new NodeStore(new MemoryBlockStore(), clock);
                 }
                 Path dir = Path.of(config.getPath()).resolve(group.replaceAll("[^A-Za-z0-9._-]", "_"));
+                if (PdtSettings.Store.DEFAULT_PATH.equals(config.getPath())) {
+                    // the default path is shared by every peer of the group on this host, and one directory serves one
+                    // store (PackNodeStore refuses a second), so each peer keeps its own directory under it
+                    java.util.Optional<ai.badmonkey.agentspaces.identity.PeerIdentity> identity =
+                            context.findBean(ai.badmonkey.agentspaces.identity.PeerIdentity.class);
+                    if (identity.isPresent()) {
+                        dir = dir.resolve(identity.get().peerId().value().replaceAll("[^A-Za-z0-9._-]", "_"));
+                    }
+                }
                 try {
                     PackNodeStore pack = PackNodeStore.open(dir);
                     packs.add(pack);

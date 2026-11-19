@@ -171,7 +171,14 @@ public class PdtSettings {
         public static final String BEAN = "bean";
 
         private String kind = PACK;
-        private String path = System.getProperty("user.home") + "/.agentspaces/pdt";
+        /**
+         * The default pack directory. Left at this default, each peer keeps its own directory under it,
+         * {@code <path>/<group>/<peer id>}, since one directory serves one store and several peers of a group may share
+         * a host; a path set explicitly is used as {@code <path>/<group>} for this one peer.
+         */
+        public static final String DEFAULT_PATH = System.getProperty("user.home") + "/.agentspaces/pdt";
+
+        private String path = DEFAULT_PATH;
         private long quota;
         private boolean require;
 
