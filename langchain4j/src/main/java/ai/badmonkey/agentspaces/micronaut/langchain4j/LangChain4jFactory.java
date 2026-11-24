@@ -55,7 +55,6 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.slf4j.LoggerFactory;
 
-import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -250,7 +249,8 @@ public class LangChain4jFactory {
         return new FleetUsage(
                 usage.getMetricsSpace().isBlank() ? null
                         : fleet.requiredSpace(usage.getMetricsSpace(), "agentspaces.micronaut.langchain4j.usage.metrics-space"),
-                usage.getEntryLease(), usage.getPublishInterval(), Clock.systemUTC());
+                usage.getEntryLease(), usage.getPublishInterval(),
+                fleet.time().withZone(java.time.ZoneOffset.UTC)); // the node's time source (EL-C-06)
     }
 
     @Singleton

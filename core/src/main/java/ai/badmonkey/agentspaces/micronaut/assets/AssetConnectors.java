@@ -58,10 +58,14 @@ public class AssetConnectors implements FleetParticipant {
     private final CompositeAssetProvider composite = new CompositeAssetProvider();
     private ConnectorRuntime runtime;
     private boolean started;
+    /** {@code agentspaces.watchdog.connector-hold-limit} (§10.35); null: no limit. */
+    private final java.time.Duration holdLimit;
 
     public AssetConnectors(FleetContext fleet, MicronautFleetSettings settings,
-                           Environment environment, List<AssetProvider> providers) {
+                           Environment environment, List<AssetProvider> providers,
+                           ai.badmonkey.agentspaces.spring.AgentSpacesProperties properties) {
         this.fleet = Objects.requireNonNull(fleet, "fleet");
+        this.holdLimit = properties == null ? null : properties.getWatchdog().getConnectorHoldLimit();
         this.settings = settings.getAssets();
         this.connectorName = environment.getProperty("micronaut.application.name", String.class)
                 .filter(name -> !name.isBlank()).orElse("assets") + "-connector";
@@ -102,7 +106,8 @@ public class AssetConnectors implements FleetParticipant {
         AgentSpaces.GroupContext group = fleet.group();
         runtime = new ConnectorRuntime(data, group.discovery(), fleet.identity(), connectorName,
                 composite, group.id(), group.clock(), settings.getFreshness())
-                .authorizer(fleet.authorizer());
+                .authorizer(fleet.authorizer())
+                .holdLimit(holdLimit); // §10.16, §10.35; unset: no limit
         runtime.start();
         LOG.info("serving {} asset provider(s) as '{}' on space '{}'",
                 composite.providers().size(), connectorName, settings.getSpace());

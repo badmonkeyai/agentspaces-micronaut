@@ -61,9 +61,15 @@ public class AgentSpacesFactory {
 
     private final AgentSpacesAutoConfiguration wiring = new AgentSpacesAutoConfiguration();
 
+    /**
+     * The fabric's one time source (srad/agentspaces-event-loop.md EL-C-06), shared by the node and the facade; an
+     * application {@link InstantSource} bean replaces it, and only a time source among those reaches the node.
+     *
+     * @return the time source
+     */
     @Singleton
     @Requires(missingBeans = InstantSource.class)
-    public InstantSource agentSpacesClock() {
+    public ai.badmonkey.agentspaces.common.time.TimeSource agentSpacesClock() {
         return wiring.agentSpacesClock();
     }
 
@@ -87,6 +93,7 @@ public class AgentSpacesFactory {
      * @param transports   the application's transports
      * @param customizers  the builder hooks
      * @param configurers  the node hooks
+     * @param clock        the context's clock: a time source is the node's too (EL-C-06)
      * @return the node
      */
     @Singleton
@@ -94,8 +101,9 @@ public class AgentSpacesFactory {
     public PeerNode agentSpacesNode(AgentSpacesProperties properties, PeerIdentity identity,
                                     List<Transport> transports,
                                     List<PeerNodeCustomizer> customizers,
-                                    List<PeerNodeConfigurer> configurers) {
-        return wiring.buildNode(properties, identity, transports, customizers, configurers, null);
+                                    List<PeerNodeConfigurer> configurers,
+                                    InstantSource clock) {
+        return wiring.buildNode(properties, identity, transports, customizers, configurers, null, clock);
     }
 
     @Singleton
@@ -192,9 +200,10 @@ public class AgentSpacesFactory {
     @Singleton
     @Bean(preDestroy = "close")
     @Requires(missingBeans = FleetScheduler.class)
-    public FleetScheduler fleetScheduler(@Named(TaskExecutors.SCHEDULED) ExecutorService scheduled) {
-        return scheduled instanceof ScheduledExecutorService executor
-                ? FleetScheduler.over(executor) : FleetScheduler.virtual("agentspaces-micronaut-");
+    public FleetScheduler fleetScheduler(@Named(TaskExecutors.SCHEDULED) ExecutorService scheduled, PeerNode node) {
+        // §10.35, I-06: the participants' periodic work runs as one-shots on the node's time source
+        return (scheduled instanceof ScheduledExecutorService executor
+                ? FleetScheduler.over(executor) : FleetScheduler.virtual("agentspaces-micronaut-")).withTime(node.time());
     }
 
     static String firstGroup(AgentSpacesProperties properties) {

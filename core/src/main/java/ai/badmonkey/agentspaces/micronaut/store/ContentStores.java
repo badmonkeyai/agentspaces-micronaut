@@ -45,7 +45,7 @@ public final class ContentStores implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(ContentStores.class);
 
     private final Map<String, ContentStore> byGroup = new LinkedHashMap<>();
-    private final List<AutoCloseable> tickHooks = new ArrayList<>();
+    private final List<AutoCloseable> loopHooks = new ArrayList<>();
     private final AgentSpaces spaces;
     private boolean started;
     private boolean closed;
@@ -76,7 +76,7 @@ public final class ContentStores implements AutoCloseable {
         }
     }
 
-    /** Starts every store and joins its tick to its group runtime's tick; idempotent. */
+    /** Starts every store and joins it to its group runtime's loop; idempotent. */
     public synchronized void start() {
         if (started || closed) {
             return;
@@ -86,7 +86,8 @@ public final class ContentStores implements AutoCloseable {
             e.getValue().start();
             AgentSpaces.GroupContext group = spaces.group(e.getKey());
             if (group.runtime() != null) {
-                tickHooks.add(group.runtime().onTick(e.getValue()::tick));
+                // its own deadlines on the node loop, as the Spring starter does (srad/agentspaces-event-loop.md EL-T-09)
+                loopHooks.add(e.getValue().joinLoop(group.runtime()));
             }
             LOG.info("group {}: content store {} over a capacity of {} bytes", e.getKey(), e.getValue().assetName(),
                     e.getValue().policy().capacityBytes());
@@ -110,11 +111,11 @@ public final class ContentStores implements AutoCloseable {
             return;
         }
         closed = true;
-        for (AutoCloseable hook : tickHooks) {
+        for (AutoCloseable hook : loopHooks) {
             try {
                 hook.close();
             } catch (Exception e) {
-                LOG.warn("unhooking a store tick failed", e);
+                LOG.warn("leaving a store's loop failed", e);
             }
         }
         byGroup.values().forEach(ContentStore::close);

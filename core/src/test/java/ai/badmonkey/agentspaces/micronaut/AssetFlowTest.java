@@ -54,6 +54,17 @@ class AssetFlowTest {
         }
     }
 
+    /** §10.35: the starter's {@code agentspaces.watchdog.connector-hold-limit} reaches the connector Micronaut builds. */
+    @Test
+    void theConnectorHoldLimitPropertyReachesTheConnector() {
+        Map<String, Object> props = Contexts.fleet(Contexts.freePort(), 0);
+        props.put("agentspaces.watchdog.connector-hold-limit", "PT5M");
+        try (ApplicationContext ctx = Contexts.run(props, Map.of("test.app", "orders"))) {
+            assertThat(ctx.getBean(AssetConnectors.class).runtimes().values()).singleElement()
+                    .satisfies(r -> assertThat(r.holdLimit()).isEqualTo(Duration.ofMinutes(5)));
+        }
+    }
+
     @Test
     void withoutProvidersNothingIsServedAndTheDataSpaceIsNotRequired() {
         Map<String, Object> props = Contexts.fleet(Contexts.freePort(), 0);

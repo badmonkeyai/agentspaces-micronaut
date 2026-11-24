@@ -30,11 +30,7 @@ class FleetConfigurationTest {
 
     /** A port nobody holds: a fixed one collides with whatever else runs on the machine (a portal on 7500). */
     private static int freePort() {
-        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (java.io.IOException e) {
-            throw new IllegalStateException(e);
-        }
+        return ai.badmonkey.agentspaces.test.Ports.free(); // the shared allocator never repeats a port in a run (§10.5)
     }
 
     @Test
@@ -68,6 +64,39 @@ class FleetConfigurationTest {
             // Untouched sections keep the POJO defaults.
             assertThat(p.getCardRefreshMillis()).isEqualTo(300_000);
             assertThat(p.getCapabilities().isVote()).isTrue();
+        }
+    }
+
+    /**
+     * srad/agentspaces-event-loop.md EL-E-04, audit I-09: an expert override names a property, a key with dots; both
+     * the bracketed form and the dotted form reach the TTL floor as the one flat key, as under Spring. Both orders of
+     * one source: with the dotted form first, Micronaut's nested tree drops it when the bracketed form replaces the
+     * map, which the binding puts back from the source's own keys (phase-6 gate; {@code Map.of}'s salted order made
+     * this pass or fail by run).
+     */
+    @Test
+    void expertOverridesWithDottedKeysBindFromTheEnvironment() {
+        for (boolean dottedFirst : new boolean[] {false, true}) {
+            Map<String, Object> source = new java.util.LinkedHashMap<>();
+            source.put("agentspaces.bind", "127.0.0.1:" + freePort());
+            source.put("agentspaces.groups[0].name", "it-fleet");
+            source.put("agentspaces.groups[0].founding", "it-fleet-v1");
+            source.put("agentspaces.ttl.strict", "true");
+            if (dottedFirst) {
+                source.put("agentspaces.ttl.expert-overrides.agentspaces.relay.peer-ttl", "lab LAN too");
+            }
+            source.put("agentspaces.ttl.expert-overrides[agentspaces.relay.path-ttl]", "lab LAN");
+            if (!dottedFirst) {
+                source.put("agentspaces.ttl.expert-overrides.agentspaces.relay.peer-ttl", "lab LAN too");
+            }
+            try (ApplicationContext ctx = ApplicationContext.run(source)) {
+                AgentSpacesProperties p = ctx.getBean(AgentSpacesProperties.class);
+                assertThat(p.getTtl().isStrict()).isTrue();
+                assertThat(p.getTtl().getExpertOverrides()).as("dotted form first: %s", dottedFirst)
+                        .containsEntry("agentspaces.relay.path-ttl", "lab LAN")
+                        .containsEntry("agentspaces.relay.peer-ttl", "lab LAN too")
+                        .hasSize(2);
+            }
         }
     }
 

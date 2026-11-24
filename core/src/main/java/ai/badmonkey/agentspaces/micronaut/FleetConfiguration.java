@@ -56,7 +56,83 @@ public class FleetConfiguration {
         @SuppressWarnings("unchecked")
         Map<String, Object> tree = environment.getProperty("agentspaces", Map.class)
                 .map(m -> (Map<String, Object>) m).orElse(Map.of());
+        tree = withExpertOverridesFrom(tree, environment.getPropertySources());
         return bind(withoutEnvironmentVariants(tree, System.getenv()));
+    }
+
+    private static final String OVERRIDES = "agentspaces.ttl.expert-overrides";
+
+    /**
+     * Puts back the expert overrides (srad/agentspaces-event-loop.md EL-E-04) that Micronaut's nested tree lost. A key
+     * of {@code ttl.expert-overrides} is itself a property name, written bracketed ({@code [agentspaces.relay.path-ttl]})
+     * or dotted. When one property source holds both forms and the dotted one comes first, the environment replaces
+     * the whole {@code expert-overrides} map with the bracketed one, and the dotted override is gone (phase-6 gate,
+     * 2026-11-23). Each source's own keys still name it, so every override a source holds and the tree lacks is added
+     * as the one flat key Spring would bind, the source of highest precedence first. An override the tree holds is
+     * never changed.
+     *
+     * @param tree    the {@code agentspaces} subtree as the environment nested it
+     * @param sources the environment's property sources
+     * @return the tree, with every override any source names
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> withExpertOverridesFrom(Map<String, Object> tree,
+            java.util.Collection<io.micronaut.context.env.PropertySource> sources) {
+        Map<String, Object> named = new LinkedHashMap<>();
+        List<io.micronaut.context.env.PropertySource> byPrecedence = new ArrayList<>(sources);
+        byPrecedence.sort(java.util.Comparator.comparingInt(io.micronaut.context.env.PropertySource::getOrder)
+                .reversed());
+        for (io.micronaut.context.env.PropertySource source : byPrecedence) {
+            for (String key : source) {
+                if (!key.startsWith(OVERRIDES)) {
+                    continue;
+                }
+                String rest = key.substring(OVERRIDES.length());
+                if (rest.startsWith("[") && rest.endsWith("]")) {
+                    rest = rest.substring(1, rest.length() - 1);
+                } else if (rest.startsWith(".") && rest.length() > 1) {
+                    rest = rest.substring(1);
+                } else {
+                    continue;
+                }
+                Object value = source.get(key);
+                if (value != null && !(value instanceof Map)) {
+                    named.putIfAbsent(rest, value);
+                }
+            }
+        }
+        if (named.isEmpty()) {
+            return tree;
+        }
+        Map<String, Object> copy = deepCopy(tree);
+        Map<String, Object> ttl = (Map<String, Object>) copy.computeIfAbsent("ttl", k -> new LinkedHashMap<>());
+        Object held = ttl.get("expert-overrides");
+        Map<String, Object> overrides = held instanceof Map<?, ?> m ? (Map<String, Object>) m : new LinkedHashMap<>();
+        ttl.put("expert-overrides", overrides);
+        Set<String> present = new java.util.HashSet<>();
+        flatKeys("", overrides, present);
+        named.forEach((key, value) -> {
+            if (!present.contains(key)) {
+                overrides.put(key, value);
+            }
+        });
+        return copy;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void flatKeys(String prefix, Map<String, Object> map, Set<String> into) {
+        map.forEach((k, v) -> {
+            String key = String.valueOf(k);
+            if (key.startsWith("[") && key.endsWith("]")) {
+                key = key.substring(1, key.length() - 1);
+            }
+            String full = prefix.isEmpty() ? key : prefix + "." + key;
+            if (v instanceof Map<?, ?> nested) {
+                flatKeys(full, (Map<String, Object>) nested, into);
+            } else {
+                into.add(full);
+            }
+        });
     }
 
     /**

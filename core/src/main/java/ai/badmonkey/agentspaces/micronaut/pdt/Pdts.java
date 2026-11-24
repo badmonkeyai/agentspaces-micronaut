@@ -54,7 +54,7 @@ public final class Pdts implements AutoCloseable {
     }
 
     private final Map<String, Member> members = new LinkedHashMap<>();
-    private final List<AutoCloseable> tickHooks = new ArrayList<>();
+    private final List<AutoCloseable> loopHooks = new ArrayList<>();
     private final AgentSpaces spaces;
     private boolean started;
     private boolean closed;
@@ -210,7 +210,7 @@ public final class Pdts implements AutoCloseable {
         return List.copyOf(members.values());
     }
 
-    /** Starts every facade and joins each to its group runtime's tick; idempotent. */
+    /** Starts every facade and joins each to its group runtime's loop; idempotent. */
     public synchronized void start() {
         if (started || closed) {
             return;
@@ -220,7 +220,8 @@ public final class Pdts implements AutoCloseable {
             member.pdt().start();
             AgentSpaces.GroupContext group = spaces.group(member.group());
             if (group.runtime() != null) {
-                tickHooks.add(group.runtime().onTick(member.pdt()::tick));
+                // its own deadlines on the node loop, as the Spring starter does (srad/agentspaces-event-loop.md EL-T-08)
+                loopHooks.add(member.pdt().joinLoop(group.runtime()));
             }
         }
     }
@@ -236,14 +237,14 @@ public final class Pdts implements AutoCloseable {
             return;
         }
         closed = true;
-        for (AutoCloseable hook : tickHooks) {
+        for (AutoCloseable hook : loopHooks) {
             try {
                 hook.close();
             } catch (Exception e) {
-                LOG.warn("unhooking a PDT tick failed", e);
+                LOG.warn("leaving a PDT's loop failed", e);
             }
         }
-        tickHooks.clear();
+        loopHooks.clear();
         for (Member member : members.values()) {
             member.pdt().close();
         }

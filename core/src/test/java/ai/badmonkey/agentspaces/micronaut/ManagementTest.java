@@ -49,6 +49,10 @@ class ManagementTest {
             String health = Contexts.get(base + "/health");
             assertThat(health).contains("\"agentspaces\"").contains("\"UP\"").contains("\"it-fleet\"");
 
+            // the loop's liveness, the counterpart of the starter's LoopLiveness (EL-H-08)
+            String liveness = Contexts.get(base + "/health/liveness");
+            assertThat(liveness).contains("\"agentspaces-loop\"").contains("\"OK\"").contains("\"UP\"");
+
             String info = Contexts.get(base + "/info");
             assertThat(info).contains("\"agentspaces\"").contains(view.peerId().value());
 
@@ -66,6 +70,7 @@ class ManagementTest {
         try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0),
                 Map.of("agentspaces.micronaut.management.enabled", "false"))) {
             assertThat(ctx.containsBean(FleetView.class)).isFalse();
+            assertThat(ctx.containsBean(ai.badmonkey.agentspaces.micronaut.management.LoopLivenessIndicator.class)).isFalse();
         }
     }
 }

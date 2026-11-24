@@ -16,6 +16,7 @@
 package ai.badmonkey.agentspaces.micronaut;
 
 import ai.badmonkey.agentspaces.agent.AgentSpaces;
+import ai.badmonkey.agentspaces.common.time.TimeSource;
 import ai.badmonkey.agentspaces.micronaut.enroll.FleetEnroller;
 import ai.badmonkey.agentspaces.peering.node.PeerNode;
 import ai.badmonkey.agentspaces.spring.AgentSpacesProperties;
@@ -24,10 +25,7 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.event.ShutdownEvent;
 import io.micronaut.context.event.StartupEvent;
 import io.micronaut.runtime.event.annotation.EventListener;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.TaskScheduler;
 import jakarta.annotation.PreDestroy;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,17 +35,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ScheduledFuture;
 
 /**
  * Drives the fabric with the application's lifecycle, as the Spring starter's
  * {@code AgentSpacesLifecycle} does: on {@link StartupEvent}, enroll the
  * annotated beans, start the node ticking (membership probes, anti-entropy,
  * self-advertisement refresh), start every {@link FleetParticipant}, and
- * schedule the card refresh (bound agents' cards, each participant's
- * {@code refresh()}, and the OIDC token-file re-read) on Micronaut's scheduled
- * executor; on shutdown, stop all of it in reverse and close the facade and
- * the node.
+ * arm the card refresh (bound agents' cards, each participant's
+ * {@code refresh()}, and the OIDC token-file re-read) as a one-shot on the
+ * node's time source, re-armed after each run as the starter does
+ * (srad/agentspaces-event-loop.md EL-T-12, EL-T-13: no fixed-rate timer, and
+ * {@code VirtualTime} drives it in tests); on shutdown, stop all of it in
+ * reverse and close the facade and the node.
  */
 @Singleton
 @Requires(property = "agentspaces.enabled", notEquals = "false")
@@ -60,22 +59,19 @@ public class FleetLifecycle {
     private final Authorizers authorizers;
     private final FleetEnroller enroller;
     private final List<ai.badmonkey.agentspaces.runtime.FleetParticipant> participants;
-    private final TaskScheduler scheduler;
     private final Duration tickPeriod;
     private final Duration cardRefreshPeriod;
-    private ScheduledFuture<?> refresher;
+    private TimeSource.Scheduled refresher;
     private volatile boolean running;
 
     public FleetLifecycle(AgentSpacesProperties properties, PeerNode node, AgentSpaces spaces,
                           Authorizers authorizers, FleetEnroller enroller,
-                          List<ai.badmonkey.agentspaces.runtime.FleetParticipant> participants,
-                          @Named(TaskExecutors.SCHEDULED) TaskScheduler scheduler) {
+                          List<ai.badmonkey.agentspaces.runtime.FleetParticipant> participants) {
         this.node = Objects.requireNonNull(node, "node");
         this.spaces = Objects.requireNonNull(spaces, "spaces");
         this.authorizers = Objects.requireNonNull(authorizers, "authorizers");
         this.enroller = Objects.requireNonNull(enroller, "enroller");
         this.participants = List.copyOf(participants);
-        this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.tickPeriod = Duration.ofMillis(properties.getTickMillis());
         this.cardRefreshPeriod = Duration.ofMillis(properties.getCardRefreshMillis());
     }
@@ -90,7 +86,7 @@ public class FleetLifecycle {
         stop();
     }
 
-    /** Enrolls, ticks, starts participants, and schedules the refresh; idempotent. */
+    /** Enrolls, starts the node loop, starts participants, and arms the refresh; idempotent. */
     public synchronized void start() {
         if (running) {
             return;
@@ -100,12 +96,26 @@ public class FleetLifecycle {
         for (ai.badmonkey.agentspaces.runtime.FleetParticipant participant : participants) {
             participant.start();
         }
-        refresher = scheduler.scheduleAtFixedRate(cardRefreshPeriod, cardRefreshPeriod, this::refresh);
         running = true;
+        armRefresh();
         LOG.info("AgentSpaces peer {} running; groups {}", node.identity().peerId(), spaces.groupNames());
     }
 
-    /** One refresh tick: cards, participants, then the token hook; none may kill the schedule. */
+    /** Arms one refresh on the node's time source; the run re-arms it, so a slow refresh never stacks. */
+    private synchronized void armRefresh() {
+        if (!running) {
+            return;
+        }
+        refresher = node.time().schedule(cardRefreshPeriod, () -> {
+            try {
+                refresh();
+            } finally {
+                armRefresh();
+            }
+        });
+    }
+
+    /** One refresh: cards, participants, then the token hook; none may kill the schedule. */
     void refresh() {
         try {
             spaces.refreshCards();
@@ -133,7 +143,7 @@ public class FleetLifecycle {
         }
         running = false;
         if (refresher != null) {
-            refresher.cancel(false);
+            refresher.cancel();
             refresher = null;
         }
         List<ai.badmonkey.agentspaces.runtime.FleetParticipant> reversed = new ArrayList<>(participants);

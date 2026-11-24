@@ -35,7 +35,7 @@ public class Gauge {
         return Contribution.to("load:" + task.topic(), task.priority());
     }
 
-    @OnEstimate(prefix = "load:", settleTicks = 2, tolerance = 0.01, resultSpace = "findings")
+    @OnEstimate(prefix = "load:", settle = "PT2S", tolerance = 0.01, resultSpace = "findings")
     public ItFinding report(PushSumAggregate.Estimate estimate) {
         return new ItFinding(estimate.epochId(), "estimate: " + Math.round(estimate.value()));
     }

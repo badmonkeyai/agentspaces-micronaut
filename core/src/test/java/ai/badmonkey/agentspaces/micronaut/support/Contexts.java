@@ -19,7 +19,6 @@ import io.micronaut.context.ApplicationContext;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -35,19 +34,15 @@ public final class Contexts {
     private Contexts() {
     }
 
+    /** A free loopback port from the shared allocator, which never hands one port out twice in a run (§10.5). */
     public static int freePort() {
-        try (ServerSocket socket = new ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress())) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return ai.badmonkey.agentspaces.test.Ports.free();
     }
 
     /** The it-fleet property set: one founded group, tasks and findings spaces. */
     public static Map<String, Object> fleet(int port, int seedPort) {
         Map<String, Object> props = new HashMap<>();
         props.put("agentspaces.bind", "127.0.0.1:" + port);
-        props.put("agentspaces.tick-millis", "200");
         props.put("agentspaces.groups[0].name", "it-fleet");
         props.put("agentspaces.groups[0].founding", "micronaut-it-fleet-v1");
         props.put("agentspaces.groups[0].spaces[0].name", "tasks");

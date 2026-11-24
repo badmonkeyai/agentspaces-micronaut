@@ -50,6 +50,21 @@ class AgentSpacesFactoryTest {
     }
 
     /** SRAD dtls-support DT-H-09: the DTLS listener block works from Micronaut properties alone. */
+    /**
+     * srad/agentspaces-event-loop.md EL-C-06: the context's clock reaches the node. Micronaut registers its own system
+     * {@code java.time.Clock}, which the factory's time-source bean yields to, as every bean yields to the
+     * application's; a system clock in any form puts the node on the process's system time source.
+     */
+    @Test
+    void theContextsSystemClockPutsTheNodeOnTheSystemTimeSource() {
+        try (ApplicationContext ctx = Contexts.run(Contexts.fleet(Contexts.freePort(), 0), Map.of())) {
+            java.time.InstantSource clock = ctx.getBean(java.time.InstantSource.class);
+            assertThat(ai.badmonkey.agentspaces.common.time.TimeSources.isSystemClock(clock)).isTrue();
+            assertThat(ctx.getBean(ai.badmonkey.agentspaces.peering.node.PeerNode.class).time())
+                    .isSameAs(ai.badmonkey.agentspaces.common.time.TimeSource.system());
+        }
+    }
+
     @Test
     void aDtlsListenerBlockListensFromProperties() throws Exception {
         int udp;
