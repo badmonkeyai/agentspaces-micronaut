@@ -2,9 +2,9 @@
 
 What changed in the Micronaut integration, newest first. The Java core's history is in `docs/dvit/CHANGELOG.md` of the AgentSpaces workspace.
 
-## Unreleased: 0.7.0
+## 0.7.0 (released 2026-11-27)
 
-Work since the 0.6.0 release, for 0.7.0. The build reads 0.7.0-SNAPSHOT; nothing is published.
+Released on 2026-11-27. Work since the 0.6.0 release; the build reads 0.7.0.
 
 - **A loop liveness indicator.** `LoopLivenessIndicator` (named `agentspaces-loop`) serves `/health/liveness`. It is UP while the node's loop is OK or DEGRADED, and DOWN once the watchdog escalates. `agentspaces.micronaut.management.enabled=false` removes it (`docs/management.md`).
 - **On the node's loop.** An application `TimeSource` bean is the node's clock. Card refresh is a one-shot on the node's time source, and the fleet scheduler, content stores and PDT run on the node's loop. `tick-millis` now paces only the deprecated `onTick` adapters.
